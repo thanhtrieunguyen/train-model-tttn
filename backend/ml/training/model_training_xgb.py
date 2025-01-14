@@ -1,8 +1,9 @@
 import pandas as pd
 import numpy as np
-from xgboost import XGBRegressor
-from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.preprocessing import StandardScaler
 import joblib
 import matplotlib
 import matplotlib.pyplot as plt
@@ -10,43 +11,40 @@ matplotlib.use('Agg')
 import os
 import sys
 from tqdm import tqdm
+import xgboost as xgb
 
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..'))
 sys.path.append(project_root)
-from backend.ml.data.data_preprocessing_xgb import WeatherDataPreprocessorXGB
+from backend.ml.data.data_preprocessing import WeatherDataPreprocessor
 
-dataset_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'historical_weather_data.csv')
+dataset_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'weather_dataset.csv')
 models_path = os.path.join(os.path.dirname(__file__), '..', 'models', 'weather_models_xgb.joblib')
 
-class WeatherPredictorXGB:
-    def __init__(self):
-        self.model = XGBRegressor(
-            n_estimators=100,
-            max_depth=20,
-            random_state=42,
-            n_jobs=-1
-        )
-        self.preprocessor = WeatherDataPreprocessorXGB()
+class WeatherPredictor:
+    def __init__(self, model_type='random_forest'):
+        self.model_type = model_type
+        self.preprocessor = WeatherDataPreprocessor()
         
     def prepare_data(self, data_path):
         """Prepare data for training."""
         df = self.preprocessor.preprocess(data_path)
         
-        # Prepare target variables
         targets = ['temperature', 'humidity', 'wind_speed', 'pressure', 
-                  'precipitation', 'cloud', 'uv_index', 'visibility', 'rain_probability', 'dewpoint']
+                  'precipitation', 'cloud', 'uv_index', 'visibility', 
+                  'rain_probability', 'dewpoint', 'gust_speed', 'snow_probability']
         
         X = df.drop(targets, axis=1)
         y_dict = {target: df[target] for target in targets}
 
-        # Tạo feature_list_for_scale sau khi tách target
         feature_list_for_scale = [col for col in X.columns if col not in targets]
+
         return X, y_dict, feature_list_for_scale
     
     def train(self, X, y_dict, feature_list_for_scale):
         """Train models for each weather parameter."""
         self.models = {}
         self.metrics = {}
+        self.scalers = {}
 
         print("Training models...")
         for target_name, y in tqdm(y_dict.items()):
@@ -54,21 +52,34 @@ class WeatherPredictorXGB:
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y, test_size=0.2, random_state=42
             )
-            
+
             # Scale data
-            X_train, X_test = self.preprocessor.scale_features(X_train, X_test, feature_list_for_scale)
+            scaler = StandardScaler()
+            X_train_scaled = scaler.fit_transform(X_train[feature_list_for_scale])
+            X_test_scaled = scaler.transform(X_test[feature_list_for_scale])
             
+            self.scalers[target_name] = scaler
+
             # Train model
-            model = XGBRegressor(
-                n_estimators=200,
-                max_depth=20,
-                random_state=42,
-                n_jobs=-1
-            )
-            model.fit(X_train, y_train)
+            if self.model_type == 'random_forest':
+                model = RandomForestRegressor(
+                    n_estimators=300,
+                    max_depth=25,
+                    random_state=42,
+                    n_jobs=-1
+                )
+            elif self.model_type == 'xgboost':
+                model = xgb.XGBRegressor(
+                    n_estimators=300,
+                    max_depth=25,
+                    random_state=42,
+                    tree_method='hist',
+                    n_jobs=-1
+                )
+            model.fit(X_train_scaled, y_train)
             
-            # Make predictions
-            y_pred = model.predict(X_test)
+            # Predict
+            y_pred = model.predict(X_test_scaled)
             
             # Calculate metrics
             mse = mean_squared_error(y_test, y_pred)
@@ -81,7 +92,7 @@ class WeatherPredictorXGB:
                 'r2': r2
             }
             
-            # Plot actual vs predicted values
+            # Plot predictions
             self.plot_predictions(y_test, y_pred, target_name)
         
         print("Training complete.")
@@ -98,24 +109,29 @@ class WeatherPredictorXGB:
         plt.title(f'Actual vs Predicted {target_name}')
         plt.legend()
         plt.grid(True)
-        plt.savefig(f'backend/ml/models/rating_chart_xgb/{target_name}.png')
+        plt.savefig(f'backend/ml/models/plots/{target_name}.png')
         plt.close()
     
     def save_models(self, path=models_path):
         """Save trained models."""
-        joblib.dump(self.models, path)
+        joblib.dump({'models': self.models, 'scalers': self.scalers}, path, compress=3)
     
     def load_models(self, path=models_path):
         """Load trained models."""
-        self.models = joblib.load(path)
-
+        data = joblib.load(path)
+        self.models = data['models']
+        self.scalers = data['scalers']
+        
 def main():
     # Initialize predictor
-    predictor = WeatherPredictorXGB()
+    model_type = 'xgboost'  # Change to 'random_forest' to use Random Forest
+    predictor = WeatherPredictor(model_type=model_type)
     
     # Prepare data
     X, y_dict, feature_list_for_scale = predictor.prepare_data(dataset_path)
-    
+
+    print(X.head())
+
     # Train models
     metrics = predictor.train(X, y_dict, feature_list_for_scale)
     

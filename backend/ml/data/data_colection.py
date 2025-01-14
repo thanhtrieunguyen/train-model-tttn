@@ -17,7 +17,7 @@ class HistoricalWeatherCollector:
         self.ninja_api_key = ninja_api_key
         self.weather_api_key = weather_api_key
         self.airports_data = []
-        self.filename = 'historical_weather_data.csv'
+        self.filename = 'weather_dataset.csv'
         
     def get_vietnam_airports(self):
         url = "https://api.api-ninjas.com/v1/airports"
@@ -56,18 +56,18 @@ class HistoricalWeatherCollector:
     def collect_historical_data(self):
         end_date = datetime.now()
         start_date = end_date - timedelta(days=365)
-        current_date = start_date
-        
-        while current_date <= end_date:
-            daily_data = []
-            
-            for airport in self.airports_data:
+
+        for airport in self.airports_data:
+            current_date = start_date
+            while current_date <= end_date:
+                daily_data = []
+
                 weather = self.get_historical_weather(
                     airport['latitude'],
                     airport['longitude'],
                     current_date
                 )
-                
+                    
                 if weather and 'forecast' in weather:
                     for hour in weather['forecast']['forecastday'][0]['hour']:
                         data_point = {
@@ -96,14 +96,14 @@ class HistoricalWeatherCollector:
                             'condition_code': hour['condition']['code'], # Mã tình trạng thời tiết
                         }
                         daily_data.append(data_point)
-                
+    
                 time.sleep(1)  # Rate limit prevention
-            
-            # Save data for current day
-            self.save_data(daily_data)
-            print(f"Saved data for {current_date.strftime('%Y-%m-%d')}")
-            
-            current_date += timedelta(days=1)
+                
+                # Save data for current day
+                self.save_data(daily_data)
+                print(f"Saved data for {current_date.strftime('%Y-%m-%d')}")
+                
+                current_date += timedelta(days=1)
 
 def main():
     collector = HistoricalWeatherCollector(

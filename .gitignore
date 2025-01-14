@@ -1,3 +1,4 @@
 .env
 thuctapenv/
-backend/ml/models/weather_models_xgb.joblib
+backend/ml/models/weather_models.joblib
+backend/ml/data/__pycache__/

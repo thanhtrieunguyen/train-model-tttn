@@ -13,28 +13,42 @@ class WeatherDataPreprocessor:
     
     def extract_time_features(self, df):
         """Extract time-based features from timestamp."""
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
-        df['hour'] = df['timestamp'].dt.hour
-        df['day'] = df['timestamp'].dt.day
-        df['month'] = df['timestamp'].dt.month
-        df['day_of_week'] = df['timestamp'].dt.dayofweek
-        df['day_of_year'] = df['timestamp'].dt.dayofyear
-        df = df.drop('timestamp', axis=1)
+        df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+        df = df.dropna(subset=['timestamp']).copy()
+        df.loc[:, 'hour'] = df['timestamp'].dt.hour
+        df.loc[:, 'day'] = df['timestamp'].dt.day
+        df.loc[:, 'month'] = df['timestamp'].dt.month
+        df.loc[:, 'day_of_week'] = df['timestamp'].dt.dayofweek
+        df.loc[:, 'day_of_year'] = df['timestamp'].dt.dayofyear
+        return df
+    
+    def create_lag_and_rolling_features(self, df, columns):
+        """Create lag and rolling mean features for specified columns."""
+        for col in columns:
+            for lag in range(1, 4):
+                df[f'{col}_lag_{lag}'] = df[col].shift(lag) 
+            for window in [3, 6, 12]:
+                df[f'{col}_rolling_mean_{window}'] = df[col].rolling(window=window).mean()
+
+        lag_cols = [f'{col}_lag_{lag}' for col in columns for lag in range(1, 4)]
+        rolling_cols = [f'{col}_rolling_mean_{window}' for col in columns for window in [3, 6, 12]]
+        df[lag_cols + rolling_cols] = df[lag_cols + rolling_cols].round(1)
+
         return df
     
     def encode_categorical(self, df):
         """Encode categorical variables."""
-        # Encode airport codes
-        df['airport_code_encoded'] = self.airport_encoder.fit_transform(df['airport_code'])
-        df = df.drop('airport_code', axis=1) 
-
-        # Encode wind direction and weather condition
+        if 'airport_code' in df.columns:
+            df['airport_code_encoded'] = self.airport_encoder.fit_transform(df['airport_code'])
+            df = df.drop('airport_code', axis=1)
         
-        df['wind_direction_encoded'] = self.wind_dir_encoder.fit_transform(df['wind_direction_symbol'])
-        df = df.drop('wind_direction_symbol', axis=1)
-
-        df['condition_encoded'] = self.condition_encoder.fit_transform(df['condition'])
-        df = df.drop('condition', axis=1)
+        if 'wind_direction_symbol' in df.columns:
+            df['wind_direction_encoded'] = self.wind_dir_encoder.fit_transform(df['wind_direction_symbol'])
+            df = df.drop('wind_direction_symbol', axis=1)
+        
+        if 'condition' in df.columns:
+            df['condition_encoded'] = self.condition_encoder.fit_transform(df['condition'])
+            df = df.drop('condition', axis=1)
         
         if 'airport_name' in df.columns:
             df = df.drop(['airport_name'], axis=1)
@@ -43,8 +57,8 @@ class WeatherDataPreprocessor:
     
     def handle_missing_values(self, df):
         """Handle missing values in the dataset."""
-        # Drop rows with missing values
-        df = df.dropna()
+        # Tính trung bình những giá trị thiếu
+        df = df.fillna(df.mean()).round(1)
         
         return df
     
@@ -53,21 +67,35 @@ class WeatherDataPreprocessor:
         """Select relevant features for model training."""
         features = [
             'hour', 'day', 'month', 'day_of_week', 'day_of_year',
-            'temperature', 'humidity', 'wind_speed', 'wind_direction_encoded',
+            'temperature', 'humidity', 'wind_speed', 'wind_direction_encoded', 'gust_speed',
             'pressure', 'precipitation', 'rain_probability', 'snow_probability',
-            'visibility', 'uv_index', 'dewpoint', 'cloud', 'condition_encoded', 'condition_code'
+            'visibility', 'uv_index', 'dewpoint', 'cloud', 
+            'condition_encoded', 'airport_code_encoded', 'wind_direction_encoded',
+            'condition_code',
+            'temperature_lag_1', 'temperature_lag_2', 'temperature_lag_3',
+            'temperature_rolling_mean_3', 'temperature_rolling_mean_6', 'temperature_rolling_mean_12',
+            'humidity_lag_1', 'humidity_lag_2', 'humidity_lag_3',
+            'humidity_rolling_mean_3', 'humidity_rolling_mean_6', 'humidity_rolling_mean_12',
+            'wind_speed_lag_1', 'wind_speed_lag_2', 'wind_speed_lag_3',
+            'wind_speed_rolling_mean_3', 'wind_speed_rolling_mean_6', 'wind_speed_rolling_mean_12',
+            'pressure_lag_1', 'pressure_lag_2', 'pressure_lag_3',
+            'pressure_rolling_mean_3', 'pressure_rolling_mean_6', 'pressure_rolling_mean_12',
+            'precipitation_lag_1', 'precipitation_lag_2', 'precipitation_lag_3',
+            'precipitation_rolling_mean_3', 'precipitation_rolling_mean_6', 'precipitation_rolling_mean_12',
+            'cloud_lag_1', 'cloud_lag_2', 'cloud_lag_3',
+            'cloud_rolling_mean_3', 'cloud_rolling_mean_6', 'cloud_rolling_mean_12',
+            'uv_index_lag_1', 'uv_index_lag_2', 'uv_index_lag_3',
+            'uv_index_rolling_mean_3', 'uv_index_rolling_mean_6', 'uv_index_rolling_mean_12',
+            'visibility_lag_1', 'visibility_lag_2', 'visibility_lag_3',
+            'visibility_rolling_mean_3', 'visibility_rolling_mean_6', 'visibility_rolling_mean_12',
+            'rain_probability_lag_1', 'rain_probability_lag_2', 'rain_probability_lag_3',
+            'rain_probability_rolling_mean_3', 'rain_probability_rolling_mean_6', 'rain_probability_rolling_mean_12',
+            'dewpoint_lag_1', 'dewpoint_lag_2', 'dewpoint_lag_3',
+            'dewpoint_rolling_mean_3', 'dewpoint_rolling_mean_6', 'dewpoint_rolling_mean_12'
         ] + [col for col in df.columns if col.startswith('airport_')]
         
         return df[features]
 
-    def scale_features(self, X_train, X_test, feature_list):
-        """Scale the numerical features."""
-        X_train_scaled = pd.DataFrame(self.scaler.fit_transform(X_train[feature_list]), columns=feature_list, index=X_train.index)
-        X_test_scaled = pd.DataFrame(self.scaler.transform(X_test[feature_list]), columns=feature_list, index=X_test.index)
-        X_train[feature_list] = X_train_scaled
-        X_test[feature_list] = X_test_scaled
-        return X_train, X_test
-    
     def preprocess(self, data_path):
         """Main preprocessing pipeline."""
         # Read data
@@ -75,7 +103,13 @@ class WeatherDataPreprocessor:
         
         # Apply preprocessing steps
         df = self.extract_time_features(df)
+
         df = self.encode_categorical(df)
+
+        # Create lag and rolling mean features
+        columns = ['temperature', 'humidity', 'wind_speed', 'pressure', 'precipitation', 'cloud', 'uv_index', 'visibility', 'rain_probability', 'dewpoint', 'gust_speed', 'snow_probability']
+        df = self.create_lag_and_rolling_features(df, columns)
+
         df = self.handle_missing_values(df)
         
         # Select features
