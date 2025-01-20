@@ -7,8 +7,6 @@ import os
 class WeatherDataPreprocessor:
     def __init__(self):
         self.airport_encoder = LabelEncoder()
-        self.condition_encoder = LabelEncoder()
-        self.wind_dir_encoder = LabelEncoder()
         self.scaler = StandardScaler()  # Initialize the scaler
     
     def extract_time_features(self, df):
@@ -43,11 +41,9 @@ class WeatherDataPreprocessor:
             df = df.drop('airport_code', axis=1)
         
         if 'wind_direction_symbol' in df.columns:
-            df['wind_direction_encoded'] = self.wind_dir_encoder.fit_transform(df['wind_direction_symbol'])
             df = df.drop('wind_direction_symbol', axis=1)
         
         if 'condition' in df.columns:
-            df['condition_encoded'] = self.condition_encoder.fit_transform(df['condition'])
             df = df.drop('condition', axis=1)
         
         if 'airport_name' in df.columns:
@@ -57,8 +53,14 @@ class WeatherDataPreprocessor:
     
     def handle_missing_values(self, df):
         """Handle missing values in the dataset."""
-        # Tính trung bình những giá trị thiếu
-        df = df.fillna(df.mean()).round(1)
+        # Chỉ chọn các cột kiểu số
+        numeric_columns = df.select_dtypes(include=[np.number]).columns
+
+        # Điền giá trị thiếu bằng trung bình của các cột số
+        df[numeric_columns] = df[numeric_columns].fillna(df[numeric_columns].mean())
+
+        # Làm tròn tất cả các cột số đến 1 chữ số thập phân
+        df[numeric_columns] = df[numeric_columns].round(1)
         
         return df
     
@@ -67,11 +69,9 @@ class WeatherDataPreprocessor:
         """Select relevant features for model training."""
         features = [
             'hour', 'day', 'month', 'day_of_week', 'day_of_year',
-            'temperature', 'humidity', 'wind_speed', 'wind_direction_encoded', 'gust_speed',
+            'temperature', 'humidity', 'wind_speed', 'gust_speed',
             'pressure', 'precipitation', 'rain_probability', 'snow_probability',
-            'visibility', 'uv_index', 'dewpoint', 'cloud', 
-            'condition_encoded', 'airport_code_encoded', 'wind_direction_encoded',
-            'condition_code',
+            'visibility', 'uv_index', 'dewpoint', 'cloud', 'wind_direction', 'condition_code',
             'temperature_lag_1', 'temperature_lag_2', 'temperature_lag_3',
             'temperature_rolling_mean_3', 'temperature_rolling_mean_6', 'temperature_rolling_mean_12',
             'humidity_lag_1', 'humidity_lag_2', 'humidity_lag_3',

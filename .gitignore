@@ -2,3 +2,4 @@
 thuctapenv/
 backend/ml/models/weather_models.joblib
 backend/ml/data/__pycache__/
+backend/ml/data/__pycache__/*

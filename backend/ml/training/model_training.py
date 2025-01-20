@@ -29,7 +29,7 @@ class WeatherPredictor:
         )
         self.preprocessor = WeatherDataPreprocessor()
         self.feature_list_for_scale = None
-        
+
     def prepare_data(self, data_path):
         """Prepare data for training."""
         df = self.preprocessor.preprocess(data_path)
@@ -38,7 +38,7 @@ class WeatherPredictor:
                   'precipitation', 'cloud', 'uv_index', 'visibility', 
                   'rain_probability', 'dewpoint', 'gust_speed', 'snow_probability',
                   'condition_code', 'wind_direction']
-        
+
         X = df.drop(targets, axis=1)
         y_dict = {target: df[target] for target in targets}
 
@@ -60,7 +60,6 @@ class WeatherPredictor:
 
         print("Training models...")
         for target_name, y in tqdm(y_dict.items()):
-            # Split data
             X_train, X_test, y_train, y_test = train_test_split(
                 X, y, test_size=0.2, random_state=42
             )
@@ -74,7 +73,7 @@ class WeatherPredictor:
 
             # Train model
             model = RandomForestRegressor(
-                n_estimators=300,
+                n_estimators=200,
                 max_depth=20,
                 random_state=42,
                 n_jobs=-1
@@ -90,7 +89,6 @@ class WeatherPredictor:
             
             self.models[target_name] = model
             self.metrics[target_name] = {
-                'mse': mse,
                 'rmse': np.sqrt(mse),
                 'r2': r2
             }
@@ -132,8 +130,6 @@ def main():
     
     # Prepare data
     X, y_dict, feature_list_for_scale = predictor.prepare_data(dataset_path)
-
-    print(X.head())
 
     # Train models
     metrics = predictor.train(X, y_dict, feature_list_for_scale)
