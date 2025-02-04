@@ -14,23 +14,23 @@ sys.path.append(project_root)
 from backend.ml.data.data_preprocessing import WeatherDataPreprocessor
 
 # Define model path
-models_path = os.path.join(os.path.dirname(__file__), '..', 'models', 'weather_models.joblib')
 conditions_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'conditions.json')
 
 class WeatherPredictionService:
-    def __init__(self, model_path=models_path):
+    def __init__(self, model_path=None):
+        if model_path is None:
+            raise ValueError("Cần cung cấp đường dẫn model khi khởi tạo WeatherPredictionService")
         try:
             self.load_models(model_path)
         except Exception as e:
             print(f"Error loading models: {e}")
         self.preprocessor = WeatherDataPreprocessor()
     
-    def load_models(self, path=models_path):
-        """Load trained models and associated metadata."""
-        data = joblib.load(path)
-        self.models = data['models']
-        self.scalers = data['scalers']
-        self.feature_list_for_scale = data['feature_list_for_scale']
+    def load_models(self, path):
+        """Chỉ load metadata, không load tất cả models vào RAM"""
+        self.path = path  # Lưu đường dẫn model
+        data = joblib.load(path)  # Load metadata trước
+        self.feature_list_for_scale = data['feature_list_for_scale']  # Lưu danh sách feature
 
     def get_historical_weather(self, api_key, location, hours=12):
         """Fetch historical weather data for the last n hours."""
@@ -163,6 +163,11 @@ class WeatherPredictionService:
 
     
     def predict(self, api_key, location, prediction_hours=24):
+        if not hasattr(self, 'models'):  # Kiểm tra nếu model chưa được load
+            data = joblib.load(self.path)  # Load model ngay khi cần
+            self.models = data['models']
+            self.scalers = data['scalers']
+            
         """Predict weather conditions for the next n hours."""
         # Lấy dữ liệu thời tiết lịch sử
         historical_data = self.get_historical_weather(api_key, location, hours=12)
@@ -284,12 +289,15 @@ def get_current_weather(api_key, location):
 
 # Example usage
 if __name__ == "__main__":
-    model_path = models_path
-    prediction_service = WeatherPredictionService(model_path)
+    model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'models', 'weather_models.joblib'))
     
+    # Khởi tạo dịch vụ dự báo
+    prediction_service = WeatherPredictionService(model_path)
+
+    # Dữ liệu test
     api_key = 'a5b32b6e884e4b5aa5b95910241712'
     location = '12.668299675,108.120002747'
 
-    # Predict for the next 3 hours
+    # Dự báo thời tiết 24 giờ
     output = prediction_service.predict(api_key, location, prediction_hours=24)
     print(json.dumps(output, indent=4, ensure_ascii=False))

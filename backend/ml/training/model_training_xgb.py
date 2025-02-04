@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.model_selection import train_test_split, cross_val_score
+from xgboost import XGBRegressor
+from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.preprocessing import StandardScaler
 import joblib
@@ -17,15 +17,25 @@ sys.path.append(project_root)
 from backend.ml.data.data_preprocessing import WeatherDataPreprocessor
 
 dataset_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'weather_dataset.csv')
-models_path = os.path.join(os.path.dirname(__file__), '..', 'models', 'weather_models.joblib')
+models_path = os.path.join(os.path.dirname(__file__), '..', 'models', 'weather_models.h5')
 
+def is_gpu_available():
+    """Kiểm tra xem có GPU không bằng cách xem có CUDA hỗ trợ không."""
+    try:
+        return 'gpu' in xgb.get_config().get('tree_method', '')
+    except:
+        return False
+    
 class WeatherPredictor:
     def __init__(self):
-        self.model = RandomForestRegressor(
+        gpu_available = is_gpu_available()
+        
+        self.model = XGBRegressor(
             n_estimators=100,
             max_depth=20,
             random_state=42,
-            n_jobs=-1
+            n_jobs=-1,
+            tree_method='gpu_hist' if gpu_available else 'hist',  # Nếu có GPU thì sử dụng 'gpu_hist', nếu không thì dùng 'hist'
         )
         self.preprocessor = WeatherDataPreprocessor()
         self.feature_list_for_scale = None
@@ -42,11 +52,6 @@ class WeatherPredictor:
         X = df.drop(targets, axis=1)
         y_dict = {target: df[target] for target in targets}
 
-        # for target in targets:
-        #     print(f"Distribution of {target}:")
-        #     print(df[target].describe())
-            
-        # Tạo feature_list_for_scale sau khi tách target
         feature_list_for_scale = [col for col in X.columns if col not in targets]
 
         return X, y_dict, feature_list_for_scale
@@ -56,7 +61,6 @@ class WeatherPredictor:
         self.models = {}
         self.metrics = {}
         self.scalers = {}
-
 
         print("Training models...")
         for target_name, y in tqdm(y_dict.items()):
@@ -72,11 +76,13 @@ class WeatherPredictor:
             self.scalers[target_name] = scaler
 
             # Train model
-            model = RandomForestRegressor(
+            gpu_available = is_gpu_available()
+            model = XGBRegressor(
                 n_estimators=200,
                 max_depth=20,
                 random_state=42,
-                n_jobs=-1
+                n_jobs=-1,
+                tree_method='gpu_hist' if gpu_available else 'hist', 
             )
             model.fit(X_train_scaled, y_train)
             
@@ -114,46 +120,26 @@ class WeatherPredictor:
         plt.close()
     
     def save_models(self, path=models_path):
-        """Save trained models and ensure 'feature_list_for_scale' is updated."""
-        if self.feature_list_for_scale is None:
-            # Cập nhật danh sách đặc trưng nếu chưa được gán
-            self.feature_list_for_scale = [
-                'hour', 'day', 'month', 'day_of_week', 'day_of_year',
-                'temperature_lag_1', 'temperature_lag_2', 'temperature_lag_3',
-                'temperature_rolling_mean_3', 'temperature_rolling_mean_6', 'temperature_rolling_mean_12',
-                'humidity_lag_1', 'humidity_lag_2', 'humidity_lag_3',
-                'humidity_rolling_mean_3', 'humidity_rolling_mean_6', 'humidity_rolling_mean_12',
-                'wind_speed_lag_1', 'wind_speed_lag_2', 'wind_speed_lag_3',
-                'wind_speed_rolling_mean_3', 'wind_speed_rolling_mean_6', 'wind_speed_rolling_mean_12',
-                'pressure_lag_1', 'pressure_lag_2', 'pressure_lag_3',
-                'pressure_rolling_mean_3', 'pressure_rolling_mean_6', 'pressure_rolling_mean_12',
-                'precipitation_lag_1', 'precipitation_lag_2', 'precipitation_lag_3',
-                'precipitation_rolling_mean_3', 'precipitation_rolling_mean_6', 'precipitation_rolling_mean_12',
-                'cloud_lag_1', 'cloud_lag_2', 'cloud_lag_3',
-                'cloud_rolling_mean_3', 'cloud_rolling_mean_6', 'cloud_rolling_mean_12',
-                'uv_index_lag_1', 'uv_index_lag_2', 'uv_index_lag_3',
-                'uv_index_rolling_mean_3', 'uv_index_rolling_mean_6', 'uv_index_rolling_mean_12',
-                'visibility_lag_1', 'visibility_lag_2', 'visibility_lag_3',
-                'visibility_rolling_mean_3', 'visibility_rolling_mean_6', 'visibility_rolling_mean_12',
-                'rain_probability_lag_1', 'rain_probability_lag_2', 'rain_probability_lag_3',
-                'rain_probability_rolling_mean_3', 'rain_probability_rolling_mean_6', 'rain_probability_rolling_mean_12',
-                'dewpoint_lag_1', 'dewpoint_lag_2', 'dewpoint_lag_3',
-                'dewpoint_rolling_mean_3', 'dewpoint_rolling_mean_6', 'dewpoint_rolling_mean_12',
-                'airport_code_encoded'
-            ]
-            print("Updated 'feature_list_for_scale' before saving the model.")
-        
-        # Lưu mô hình và thông tin liên quan
-        joblib.dump({'models': self.models, 'scalers': self.scalers, 'feature_list_for_scale': self.feature_list_for_scale}, path, compress=4)
-        print(f"Models and feature list saved successfully to {path}.")
+        """Save trained models."""
+        import h5py
+        with h5py.File(path, 'w') as f:
+            for target_name, model in self.models.items():
+                model.save_model(f'{target_name}.json')
+            f.create_dataset('feature_list_for_scale', data=np.array(self.feature_list_for_scale, dtype='S'))
     
     def load_models(self, path=models_path):
         """Load trained models."""
-        data = joblib.load(path)
-        self.models = data['models']
-        self.scalers = data['scalers']
-        self.feature_list_for_scale = data['feature_list_for_scale']
-        
+        import h5py
+        self.models = {}
+        self.scalers = {}
+        with h5py.File(path, 'r') as f:
+            for target_name in f.keys():
+                if target_name != 'feature_list_for_scale':
+                    model = XGBRegressor()
+                    model.load_model(f[target_name].value)
+                    self.models[target_name] = model
+            self.feature_list_for_scale = [col.decode('utf-8') for col in f['feature_list_for_scale']]
+
 def main():
     # Initialize predictor
     predictor = WeatherPredictor()
