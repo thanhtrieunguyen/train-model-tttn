@@ -1,0 +1,94 @@
+{
+    "_id": {
+        "$oid": "67ab1f40912556cb5bad490a"
+    },
+    "location_data": {
+        "location": "12.668299675,108.120002747",
+        "city": "Buôn Ma Thuột",
+        "state": "Đắk Lắk",
+        "country": "Vietnam",
+        "country_code": "VN",
+        "timezone": "Asia/Ho_Chi_Minh",
+        "airport": {
+            "icao": "VVBM",
+            "iata": "BMV",
+            "name": "Sân bay Buôn Ma Thuột",
+            "lat": "12.668299675",
+            "lon": "108.120002747"
+        },
+        "timestamp": "2025-02-11T16:42:13"
+    },
+    "current_weather": {
+        "timestamp": "2025-02-11T17:00:00",
+        "temperature": 23.9,
+        "humidity": 67.3,
+        "wind_speed": 14,
+        "wind_direction": 113.6,
+        "wind_direction_symbol": "ESE",
+        "pressure": 1013.7,
+        "precipitation": 0,
+        "cloud": 99.1,
+        "gust_speed": 13.3,
+        "condition": {
+            "code": 1030,
+            "text": "Mist",
+            "icon": 143
+        },
+        "rain_probability": 92.9,
+        "snow_probability": 0,
+        "visibility": 10,
+        "uv_index": 6.5,
+        "dewpoint": 18.9
+    },
+    "prediction": [
+        {
+            "timestamp": "2025-02-11T18:00:00",
+            "temperature": 23.9,
+            "humidity": 67.3,
+            "wind_speed": 14,
+            "wind_direction": 113.6,
+            "wind_direction_symbol": "ESE",
+            "pressure": 1013.7,
+            "precipitation": 0,
+            "cloud": 99.1,
+            "gust_speed": 13.3,
+            "condition": {
+                "code": 1030,
+                "text": "Mist",
+                "icon": 143
+            },
+            "rain_probability": 92.9,
+            "snow_probability": 0,
+            "visibility": 10,
+            "uv_index": 6.5,
+            "dewpoint": 18.9
+        },
+        {
+            "timestamp": "2025-02-11T19:00:00",
+            "temperature": 23.9,
+            "humidity": 67.3,
+            "wind_speed": 14,
+            "wind_direction": 113.6,
+            "wind_direction_symbol": "ESE",
+            "pressure": 1013.7,
+            "precipitation": 0,
+            "cloud": 99.1,
+            "gust_speed": 13.3,
+            "condition": {
+                "code": 1030,
+                "text": "Mist",
+                "icon": 143
+            },
+            "rain_probability": 92.9,
+            "snow_probability": 0,
+            "visibility": 10,
+            "uv_index": 6.5,
+            "dewpoint": 18.9
+        }
+    ],
+    "created_at": {
+        "$date": "2025-02-11T17:00:00"
+    }
+}
+
+

@@ -39,8 +39,6 @@ class WeatherPredictionService:
 
         # Get current weather
         current_weather = get_current_weather(api_key, location)
-        
-        print(f"Current weather: {current_weather}")
 
         historical_data.append(current_weather)
 
@@ -169,21 +167,35 @@ class WeatherPredictionService:
             self.scalers = data['scalers']
             
         """Predict weather conditions for the next n hours."""
+        # Extract lat, lon from the user input for precision
+        lat, lon = map(float, location.split(','))
         # Lấy dữ liệu thời tiết lịch sử
         historical_data = self.get_historical_weather(api_key, location, hours=12)
 
-        location_info = historical_data[0]  # Giả sử thông tin vị trí từ bản ghi đầu tiên
-        lat, lon = map(float, location.split(','))  # Tách lat và lon từ chuỗi location
-
+        # Updated location_data using precise input coordinates instead of possibly rounded values from API
+        location_info = historical_data[0]
         location_data = {
-            "name": "Buon Me Thuot",  # Giả định tên
-            "region": "",
-            "country": "Vietnam",
+            "name": location_info.get("name", "Unknown"),
+            "region": location_info.get("region", ""),
+            "country": location_info.get("country", ""),
             "lat": lat,
             "lon": lon,
-            "tz_id": "Asia/Ho_Chi_Minh",
-            "localtime": location_info.get("timestamp")  # Lấy thời gian hiện tại
+            "tz_id": location_info.get("tz_id", "Asia/Ho_Chi_Minh"),
+            "localtime": location_info.get("timestamp")
         }
+        
+        # New: If requested location matches an airport from airports.json, update location_data with airport name and iata
+        airports_file = os.path.join(os.path.dirname(__file__), '..', 'data', 'airports.json')
+        try:
+            with open(airports_file, 'r', encoding='utf-8') as f:
+                airports = json.load(f)
+            for airport in airports:
+                if abs(float(airport["latitude"]) - lat) < 1e-6 and abs(float(airport["longitude"]) - lon) < 1e-6:
+                    location_data["airport_name"] = airport["name"]
+                    location_data["iata"] = airport["iata"]
+                    break
+        except Exception as e:
+            print(f"Error loading airports.json: {e}")
             
         # Tạo timestamp cho các thời điểm dự báo
         current_time = datetime.now().replace(minute=0, second=0, microsecond=0) + timedelta(hours=1)
@@ -256,7 +268,10 @@ class WeatherPredictionService:
                 "dewpoint": prediction['dewpoint']
             })
 
-        return {"location": location_data, "predictions": predictions}
+        return {
+            "location": location_data, 
+            "predictions": predictions
+            }
 
 def get_current_weather(api_key, location):
     """Fetch current weather data."""
@@ -284,20 +299,22 @@ def get_current_weather(api_key, location):
         'visibility': data['current']['vis_km'],
         'uv_index': data['current']['uv'],
         'condition_code': data['current']['condition']['code'],
-        'dewpoint': data['current'].get('dewpoint_c')
+        'dewpoint': data['current'].get('dewpoint_c'),
+        
+        'name': data['location'].get('name'),
+        'region': data['location'].get('region'),
+        'country': data['location'].get('country'),
+        'lat': data['location'].get('lat'),
+        'lon': data['location'].get('lon'),
+        'tz_id': data['location'].get('tz_id')
     }
 
 # Example usage
 if __name__ == "__main__":
-    model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'models', 'weather_models.joblib'))
-    
-    # Khởi tạo dịch vụ dự báo
-    prediction_service = WeatherPredictionService(model_path)
-
-    # Dữ liệu test
-    api_key = 'a5b32b6e884e4b5aa5b95910241712'
-    location = '12.668299675,108.120002747'
-
-    # Dự báo thời tiết 24 giờ
-    output = prediction_service.predict(api_key, location, prediction_hours=24)
-    print(json.dumps(output, indent=4, ensure_ascii=False))
+    # model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'models', 'weather_models.joblib'))
+    # prediction_service = WeatherPredictionService(model_path)
+    # api_key = 'a5b32b6e884e4b5aa5b95910241712'
+    # location = '12.668299675,108.120002747'
+    # output = prediction_service.predict(api_key, location, prediction_hours=24)
+    # print(json.dumps(output, indent=4, ensure_ascii=False))
+    pass
