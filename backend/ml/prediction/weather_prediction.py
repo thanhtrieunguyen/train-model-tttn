@@ -311,10 +311,10 @@ def get_current_weather(api_key, location):
 
 # Example usage
 if __name__ == "__main__":
-    # model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'models', 'weather_models.joblib'))
-    # prediction_service = WeatherPredictionService(model_path)
-    # api_key = 'a5b32b6e884e4b5aa5b95910241712'
-    # location = '12.668299675,108.120002747'
-    # output = prediction_service.predict(api_key, location, prediction_hours=24)
-    # print(json.dumps(output, indent=4, ensure_ascii=False))
-    pass
+    model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'models', 'weather_models.joblib'))
+    prediction_service = WeatherPredictionService(model_path)
+    api_key = 'a5b32b6e884e4b5aa5b95910241712'
+    location = '12.668299675,108.120002747'
+    output = prediction_service.predict(api_key, location, prediction_hours=24)
+    print(json.dumps(output, indent=4, ensure_ascii=False))
+    # pass

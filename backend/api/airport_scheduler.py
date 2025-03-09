@@ -10,7 +10,7 @@ import sys
 current_dir = os.path.dirname(__file__)
 project_root = os.path.abspath(os.path.join(current_dir, '../..'))
 airports_path = os.path.join(project_root, 'backend', 'ml', 'data', 'airports.json')
-model_path = os.path.join(project_root, 'backend', 'ml', 'models', 'weather_models.joblib')
+model_path = os.path.join(project_root, 'backend', 'ml', 'models', 'modelfin', 'weather_models.joblib')
 output_csv = os.path.join(project_root, 'backend', 'data', 'airport_forecast.csv')
 
 # Thêm project vào sys.path để import module dự báo
@@ -119,36 +119,39 @@ def fetch_prediction_for_airport(airport):
 #         print(f"Hoàn thành phiên dự báo cho mốc {target.time()}. Bắt đầu vòng lặp mới.\n")
 
 
-# ...existing code...
-# Comment lại phiên bản production main_loop
 # def main_loop():
 #     from backend.db.mongo_connector import store_weather_data
 #     MONGO_DB_PASSWORD = os.getenv("MONGO_DB_PASSWORD")
+    
 #     airports = load_airports()
 #     print("Bắt đầu scheduler cho dự báo sân bay theo chu kỳ 30 phút...")
-#     
+    
 #     while True:
 #         now = datetime.now()
 #         if now.minute < 30:
 #             target = now.replace(minute=30, second=0, microsecond=0)
 #         else:
 #             target = (now + timedelta(hours=1)).replace(minute=0, second=0, microsecond=0)
-#         
-#         prefetch_start = target - timedelta(minutes=5)
+        
+#         prefetch_start = target - timedelta(minutes=10)
 #         sleep_seconds = (prefetch_start - datetime.now()).total_seconds()
 #         if sleep_seconds > 0:
 #             print(f"Chờ {int(sleep_seconds)} giây đến thời điểm prefetch_start ({prefetch_start.time()})")
 #             time.sleep(sleep_seconds)
-#         
+        
 #         records = {}
 #         failed_airports = []
+        
+#         print(f"Bắt đầu prefetch dự báo cho mốc {target.time()}")
 #         for airport in airports:
+#             print(f"Prefetch dự báo cho {airport.get('iata')}...")
 #             record = fetch_prediction_for_airport(airport)
 #             if record:
 #                 records[airport.get("iata")] = record
 #             else:
 #                 failed_airports.append(airport)
-#         
+        
+#         print(f"Prefetch hoàn thành. {len(records)} sân bay thành công, {len(failed_airports)} sân bay lỗi.")
 #         while datetime.now() < target and failed_airports:
 #             print(f"Retry cho {len(failed_airports)} sân bay bị lỗi...")
 #             time.sleep(10)
@@ -157,9 +160,10 @@ def fetch_prediction_for_airport(airport):
 #                 if record:
 #                     records[airport.get("iata")] = record
 #                     failed_airports.remove(airport)
-#         
+        
 #         final_records = list(records.values())
-#         
+        
+#         print(f"Đã prefetch dự báo cho {len(final_records)} sân bay.")
 #         if final_records:
 #             df = pd.json_normalize(final_records)
 #             df["update_time"] = datetime.now().isoformat()
@@ -167,23 +171,23 @@ def fetch_prediction_for_airport(airport):
 #             print(f"Đã lưu dữ liệu dự báo vào {output_csv}")
 #         else:
 #             print("Không có dự báo nào thành công trong phiên này.")
-#         
-#         from backend.db.mongo_connector import store_weather_data
+        
+#         remaining = (target - datetime.now()).total_seconds()
+#         if remaining > 0:
+#             time.sleep(remaining)
+        
+#         # Lưu vào MongoDB sau khi đã đến đúng target
 #         if os.getenv("MONGO_DB_PASSWORD"):
 #             for rec in final_records:
 #                 store_weather_data(os.getenv("MONGO_DB_PASSWORD"), rec)
 #             print("Đã lưu dữ liệu thời tiết vào MongoDB")
 #         else:
 #             print("MONGO_DB_PASSWORD chưa được thiết lập.")
-#         
-#         remaining = (target - datetime.now()).total_seconds()
-#         if remaining > 0:
-#             time.sleep(remaining)
+        
 #         print(f"Hoàn thành phiên dự báo cho mốc {target.time()}. Bắt đầu vòng lặp mới.\n")
 
-
 # Hàm main_loop test với chu kỳ ngắn (mặc định 2 phút, bạn có thể đổi số phút nếu cần)
-def main_loop(test_minutes=2):
+def main_loop(test_minutes=0.5):
     from backend.db.mongo_connector import store_weather_data
     MONGO_DB_PASSWORD = os.getenv("MONGO_DB_PASSWORD")
     airports = load_airports()
@@ -201,13 +205,17 @@ def main_loop(test_minutes=2):
         
         records = {}
         failed_airports = []
+
+        print(f"Bắt đầu prefetch dự báo cho mốc {target.time()}")
         for airport in airports:
+            print(f"Prefetch dự báo cho {airport.get('iata')}...")
             record = fetch_prediction_for_airport(airport)
             if record:
                 records[airport.get("iata")] = record
             else:
                 failed_airports.append(airport)
         
+        print(f"Prefetch hoàn thành. {len(records)} sân bay thành công, {len(failed_airports)} sân bay lỗi.")
         # Retry cho các sân bay lỗi trong khoảng 30 giây trước target
         while datetime.now() < target and failed_airports:
             print(f"Retry cho {len(failed_airports)} sân bay bị lỗi...")
@@ -220,6 +228,7 @@ def main_loop(test_minutes=2):
         
         final_records = list(records.values())
         
+        print(f"Đã prefetch dự báo cho {len(final_records)} sân bay.")
         if final_records:
             df = pd.json_normalize(final_records)
             df["update_time"] = datetime.now().isoformat()
@@ -239,9 +248,6 @@ def main_loop(test_minutes=2):
         if remaining > 0:
             time.sleep(remaining)
         print(f"Hoàn thành phiên dự báo cho mốc {target.time()}. Bắt đầu vòng lặp mới.\n")
-        
-# ...existing code...
 
 if __name__ == "__main__":
-    # Chọn chạy chế độ test với chu kỳ 2 phút (có thể thay đổi test_minutes)
-    main_loop(test_minutes=2)
+    main_loop(test_minutes=0.5)

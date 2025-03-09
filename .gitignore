@@ -3,3 +3,11 @@ thuctapenv/
 backend/ml/models/weather_models.joblib
 backend/ml/data/__pycache__/
 backend/ml/data/__pycache__/*
+backend/ml/models/modelfin/weather_models.joblib
+backend/ml/models/modelfin
+backend/ml/models/rating_chart_xgb
+backend/ml/models/xgb
+backend/ml/training/.ipynb_checkpoints
+backend/ml/data/weather_dataset.csv
+weather_dataset1 (5).csv
+backend/ml/data/weather_dataset.csv
