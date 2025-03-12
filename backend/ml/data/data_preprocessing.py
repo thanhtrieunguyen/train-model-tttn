@@ -20,6 +20,73 @@ class WeatherDataPreprocessor:
         df.loc[:, 'day_of_year'] = df['timestamp'].dt.dayofyear
         return df
     
+    def extract_season_features(self, df):
+        """Thêm đặc trưng về mùa dựa trên tháng và vĩ độ"""
+        df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+        
+        # Lấy tháng từ timestamp
+        month = df['timestamp'].dt.month
+        
+        # Thêm các đặc trưng mùa theo cách thủ công
+        # Mùa xuân: tháng 3-5, Mùa hè: tháng 6-8, Mùa thu: tháng 9-11, Mùa đông: tháng 12-2
+        df['is_spring'] = ((month >= 3) & (month <= 5)).astype(int)
+        df['is_summer'] = ((month >= 6) & (month <= 8)).astype(int)
+        df['is_autumn'] = ((month >= 9) & (month <= 11)).astype(int)
+        df['is_winter'] = ((month == 12) | (month <= 2)).astype(int)
+        
+        # Bổ sung thêm đặc trưng theo hàm sin và cos để biểu diễn tính chu kỳ của mùa
+        df['season_sin'] = np.sin(2 * np.pi * month / 12)
+        df['season_cos'] = np.cos(2 * np.pi * month / 12)
+        
+        return df
+
+    def add_terrain_features(self, df):
+        """Thêm đặc trưng về địa hình"""
+        # Đọc dữ liệu địa hình
+        terrain_path = os.path.join(os.path.dirname(__file__), 'terrain_data.csv')
+        
+        if os.path.exists(terrain_path):
+            terrain_df = pd.read_csv(terrain_path)
+            
+            # Nếu có cột 'iata' trong df, thì join trực tiếp
+            if 'iata' in df.columns:
+                df = df.merge(terrain_df[['iata', 'elevation_m', 'terrain_type']], 
+                            on='iata', how='left')
+            # Nếu có lat, lon thì join theo khoảng cách gần nhất
+            elif 'lat' in df.columns and 'lon' in df.columns:
+                from scipy.spatial.distance import cdist
+                
+                for idx, row in df.iterrows():
+                    if pd.isna(row['lat']) or pd.isna(row['lon']):
+                        continue
+                        
+                    # Tìm sân bay gần nhất
+                    coords = np.array([[row['lat'], row['lon']]])
+                    terrain_coords = np.array(list(zip(terrain_df['latitude'], terrain_df['longitude'])))
+                    distances = cdist(coords, terrain_coords)[0]
+                    nearest_idx = np.argmin(distances)
+                    
+                    df.at[idx, 'elevation_m'] = terrain_df.iloc[nearest_idx]['elevation_m']
+                    df.at[idx, 'terrain_type'] = terrain_df.iloc[nearest_idx]['terrain_type']
+            
+            # One-hot encoding cho terrain_type
+            if 'terrain_type' in df.columns:
+                df = pd.get_dummies(df, columns=['terrain_type'], prefix='terrain')
+                
+        # Nếu không có dữ liệu địa hình, thêm các cột giả
+        if 'elevation_m' not in df.columns:
+            df['elevation_m'] = 0
+        if 'terrain_lowland' not in df.columns:
+            df['terrain_lowland'] = 0
+        if 'terrain_hills' not in df.columns:
+            df['terrain_hills'] = 0
+        if 'terrain_highland' not in df.columns:
+            df['terrain_highland'] = 0
+        if 'terrain_mountain' not in df.columns:
+            df['terrain_mountain'] = 0
+        
+        return df
+    
     def create_lag_and_rolling_features(self, df, columns):
         """Create lag and rolling mean features for specified columns."""
         for col in columns:
@@ -72,6 +139,9 @@ class WeatherDataPreprocessor:
             'temperature', 'humidity', 'wind_speed', 'gust_speed',
             'pressure', 'precipitation', 'rain_probability', 'snow_probability',
             'visibility', 'uv_index', 'dewpoint', 'cloud', 'wind_direction', 'condition_code',
+            'is_spring', 'is_summer', 'is_autumn', 'is_winter', 
+            'season_sin', 'season_cos',
+            'elevation_m', 'terrain_lowland', 'terrain_hills', 'terrain_highland', 'terrain_mountain',
             'temperature_lag_1', 'temperature_lag_2', 'temperature_lag_3',
             'temperature_rolling_mean_3', 'temperature_rolling_mean_6', 'temperature_rolling_mean_12',
             'humidity_lag_1', 'humidity_lag_2', 'humidity_lag_3',
@@ -94,7 +164,9 @@ class WeatherDataPreprocessor:
             'dewpoint_rolling_mean_3', 'dewpoint_rolling_mean_6', 'dewpoint_rolling_mean_12'
         ] + [col for col in df.columns if col.startswith('airport_')]
         
-        return df[features]
+        available_features = [f for f in features if f in df.columns]
+
+        return df[available_features]
 
     def preprocess(self, data_path):
         """Main preprocessing pipeline."""
@@ -103,6 +175,8 @@ class WeatherDataPreprocessor:
         
         # Apply preprocessing steps
         df = self.extract_time_features(df)
+        df = self.extract_season_features(df)  # Thêm đặc trưng mùa
+        df = self.add_terrain_features(df)     
 
         df = self.encode_categorical(df)
 
@@ -114,4 +188,33 @@ class WeatherDataPreprocessor:
         
         # Select features
         df = self.select_features(df)
+        return df
+
+    def preprocess_real_time_data(self, df):
+        """Xử lý dữ liệu thời gian thực cho việc dự báo"""
+        # Đảm bảo timestamp là datetime
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        
+        # Trích xuất đặc trưng thời gian
+        df = self.extract_time_features(df)
+        
+        # Trích xuất đặc trưng mùa
+        df = self.extract_season_features(df)
+        
+        # Tạo các đặc trưng lag và rolling
+        target_columns = ['temperature', 'humidity', 'wind_speed', 'pressure', 
+                         'precipitation', 'cloud', 'uv_index', 'visibility', 
+                         'rain_probability', 'dewpoint']
+        
+        available_columns = [col for col in target_columns if col in df.columns]
+        if available_columns:
+            df = self.create_lag_and_rolling_features(df, available_columns)
+        
+        # Xử lý giá trị thiếu
+        df = self.handle_missing_values(df)
+        
+        # Thêm thông tin địa hình nếu có
+        if 'latitude' in df.columns and 'longitude' in df.columns:
+            df = self.add_terrain_features(df)
+        
         return df

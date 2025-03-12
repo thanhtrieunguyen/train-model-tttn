@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.model_selection import train_test_split, cross_val_score
-from sklearn.metrics import mean_squared_error, r2_score
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error, mean_absolute_percentage_error
 from sklearn.preprocessing import StandardScaler
 import joblib
 import matplotlib
@@ -16,7 +16,7 @@ project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../..
 sys.path.append(project_root)
 from backend.ml.data.data_preprocessing import WeatherDataPreprocessor
 
-dataset_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'weather_dataset.csv')
+dataset_path = os.path.join(os.path.dirname(__file__), '..', 'data', 'weather_dataset_with_season_terrain.csv')
 models_path = os.path.join(os.path.dirname(__file__), '..', 'models', 'weather_models.joblib')
 
 class WeatherPredictor:
@@ -74,7 +74,7 @@ class WeatherPredictor:
             # Train model
             model = RandomForestRegressor(
                 n_estimators=200,
-                max_depth=20,
+                max_depth=10,
                 random_state=42,
                 n_jobs=-1
             )
@@ -90,13 +90,17 @@ class WeatherPredictor:
             self.models[target_name] = model
             self.metrics[target_name] = {
                 'rmse': np.sqrt(mse),
-                'r2': r2
+                'r2': r2,
+                'mae': mean_absolute_error(y_test, y_pred),
+                'mape': mean_absolute_percentage_error(y_test, y_pred) if np.all(y_test != 0) else float('nan')
             }
             
             # Vẽ biểu đồ
             self.plot_predictions(y_test, y_pred, target_name)
         
         print("Training complete.")
+        
+        # self.print_evaluation_metrics()
         
         return self.metrics
     
@@ -119,6 +123,9 @@ class WeatherPredictor:
             # Cập nhật danh sách đặc trưng nếu chưa được gán
             self.feature_list_for_scale = [
                 'hour', 'day', 'month', 'day_of_week', 'day_of_year',
+                'is_spring', 'is_summer', 'is_autumn', 'is_winter',
+                'season_sin', 'season_cos',
+                'elevation_m', 'terrain_lowland', 'terrain_hills', 'terrain_highland', 'terrain_mountain',
                 'temperature_lag_1', 'temperature_lag_2', 'temperature_lag_3',
                 'temperature_rolling_mean_3', 'temperature_rolling_mean_6', 'temperature_rolling_mean_12',
                 'humidity_lag_1', 'humidity_lag_2', 'humidity_lag_3',
@@ -153,6 +160,75 @@ class WeatherPredictor:
         self.models = data['models']
         self.scalers = data['scalers']
         self.feature_list_for_scale = data['feature_list_for_scale']
+    
+    # def print_evaluation_metrics(self):
+    #     """Print comprehensive evaluation metrics for all models."""
+    #     print("\n" + "="*80)
+    #     print(f"{'MODEL EVALUATION METRICS':^80}")
+    #     print("="*80)
+    #     print(f"{'Target':<15} | {'RMSE':^12} | {'MAE':^12} | {'R²':^12} | {'MAPE (%)':^12}")
+    #     print("-"*80)
+        
+    #     for target, metrics in self.metrics.items():
+    #         rmse = f"{metrics['rmse']:.4f}" if isinstance(metrics['rmse'], (int, float)) else metrics['rmse']
+    #         mae = f"{metrics['mae']:.4f}" if isinstance(metrics['mae'], (int, float)) else metrics['mae']
+    #         r2 = f"{metrics['r2']:.4f}" if isinstance(metrics['r2'], (int, float)) else metrics['r2']
+    #         mape = f"{metrics['mape']:.4f}" if isinstance(metrics['mape'], (int, float)) else metrics['mape']
+            
+    #         print(f"{target:<15} | {rmse:^12} | {mae:^12} | {r2:^12} | {mape:^12}")
+        
+    #     print("="*80)
+        
+    #     # Also print top 5 most important features for each model
+    #     print("\n" + "="*80)
+    #     print(f"{'TOP 5 MOST IMPORTANT FEATURES':^80}")
+    #     print("="*80)
+        
+    #     for target, importances in self.feature_importances.items():
+    #         print(f"\nModel: {target}")
+    #         sorted_features = sorted(importances.items(), key=lambda x: x[1], reverse=True)[:5]
+    #         for i, (feature, importance) in enumerate(sorted_features, 1):
+    #             print(f"{i}. {feature:<20}: {importance:.4f}")
+    
+    def generate_summary_report(self, output_path=None):
+        """Generate a comprehensive summary report of model performance."""
+        if output_path is None:
+            output_path = os.path.join(project_root, 'backend', 'ml', 'models', 'model_evaluation_report.txt')
+        
+        with open(output_path, 'w') as f:
+            f.write("="*80 + "\n")
+            f.write(f"{'WEATHER PREDICTION MODEL EVALUATION REPORT':^80}\n")
+            f.write(f"{'Generated on: ' + pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'):^80}\n")
+            f.write("="*80 + "\n\n")
+            
+            # Write model metrics
+            f.write("MODEL PERFORMANCE METRICS\n")
+            f.write("-"*80 + "\n")
+            f.write(f"{'Target':<15} | {'RMSE':^12} | {'MAE':^12} | {'R²':^12} | {'MAPE (%)':^12}\n")
+            f.write("-"*80 + "\n")
+            
+            for target, metrics in self.metrics.items():
+                rmse = f"{metrics['rmse']:.4f}" if isinstance(metrics['rmse'], (int, float)) else metrics['rmse']
+                mae = f"{metrics['mae']:.4f}" if isinstance(metrics['mae'], (int, float)) else metrics['mae']
+                r2 = f"{metrics['r2']:.4f}" if isinstance(metrics['r2'], (int, float)) else metrics['r2']
+                mape = f"{metrics['mape']:.4f}" if isinstance(metrics['mape'], (int, float)) else metrics['mape']
+                
+                f.write(f"{target:<15} | {rmse:^12} | {mae:^12} | {r2:^12} | {mape:^12}\n")
+            
+            f.write("\n\n")
+            
+            # Write feature importances
+            f.write("FEATURE IMPORTANCE ANALYSIS\n")
+            f.write("-"*80 + "\n")
+            
+            for target, importances in self.feature_importances.items():
+                f.write(f"\nModel: {target}\n")
+                sorted_features = sorted(importances.items(), key=lambda x: x[1], reverse=True)
+                for i, (feature, importance) in enumerate(sorted_features, 1):
+                    f.write(f"{i}. {feature:<20}: {importance:.4f}\n")
+                f.write("\n")
+        
+        print(f"Summary report generated at: {output_path}")
         
 def main():
     # Initialize predictor
@@ -170,6 +246,8 @@ def main():
     
     # Save models
     predictor.save_models()
+
+    predictor.generate_summary_report()
 
 if __name__ == "__main__":
     main()
