@@ -5,9 +5,10 @@ import pandas as pd
 import numpy as np
 import lightgbm as lgb
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error
+from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error, mean_absolute_percentage_error
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 # Thêm đường dẫn gốc của dự án vào sys.path
 current_dir = os.path.dirname(__file__)
@@ -16,111 +17,229 @@ sys.path.append(project_root)
 
 from backend.ml.data.data_preprocessing import WeatherDataPreprocessor
 
+class LightGBMTrainer:
+    def __init__(self):
+        self.model = lgb.LGBMRegressor(
+            n_estimators=100,
+            learning_rate=0.1,
+            random_state=42,
+            n_jobs=-1
+        )
+        self.preprocessor = WeatherDataPreprocessor()
+        self.feature_list_for_scale = None
+        self.models = {}
+        self.scalers = {}
+        self.metrics = {}
+
+    def prepare_data(self, data_path):
+        """Chuẩn bị dữ liệu cho huấn luyện."""
+        print("Đang tiền xử lý dữ liệu...")
+        df = self.preprocessor.preprocess(data_path)
+        
+        targets = ['temperature', 'humidity', 'wind_speed', 'pressure', 
+                  'precipitation', 'cloud', 'uv_index', 'visibility', 
+                  'rain_probability', 'dewpoint', 'gust_speed', 'snow_probability',
+                  'condition_code', 'wind_direction']
+
+        X = df.drop(targets, axis=1)
+        y_dict = {target: df[target] for target in targets}
+            
+        # Tạo feature_list_for_scale sau khi tách target
+        feature_list_for_scale = [col for col in X.columns if col not in targets]
+        self.feature_list_for_scale = feature_list_for_scale
+
+        return X, y_dict, feature_list_for_scale
+
+    def train(self, X, y_dict, feature_list_for_scale):
+        """Huấn luyện mô hình cho từng tham số thời tiết."""
+        print("Đang huấn luyện mô hình...")
+        for target_name, y in tqdm(y_dict.items()):
+            print(f"\nĐang huấn luyện mô hình cho {target_name}...")
+            
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=0.2, random_state=42
+            )
+
+            # Chuẩn hóa dữ liệu
+            scaler = StandardScaler()
+            X_train_scaled = X_train.copy()
+            X_test_scaled = X_test.copy()
+            
+            X_train_scaled[feature_list_for_scale] = scaler.fit_transform(X_train[feature_list_for_scale])
+            X_test_scaled[feature_list_for_scale] = scaler.transform(X_test[feature_list_for_scale])
+            
+            self.scalers[target_name] = scaler
+
+            # Huấn luyện mô hình
+            model = lgb.LGBMRegressor(
+                n_estimators=100,
+                learning_rate=0.1,
+                random_state=42,
+                n_jobs=-1
+            )
+            model.fit(X_train_scaled, y_train)
+            
+            # Dự báo
+            y_pred = model.predict(X_test_scaled)
+            
+            # Tính toán các metrics 
+            mse = mean_squared_error(y_test, y_pred)
+            rmse = np.sqrt(mse)
+            r2 = r2_score(y_test, y_pred)
+            mae = mean_absolute_error(y_test, y_pred)
+            
+            # Tính MAPE chỉ khi không có giá trị 0
+            try:
+                mape = mean_absolute_percentage_error(y_test, y_pred)
+            except:
+                mape = float('nan')
+            
+            self.models[target_name] = model
+            self.metrics[target_name] = {
+                'rmse': rmse,
+                'r2': r2,
+                'mae': mae,
+                'mape': mape
+            }
+            
+            # Vẽ biểu đồ dự báo
+            self.plot_predictions(y_test, y_pred, target_name)
+            
+            print(f"Hoàn thành huấn luyện cho {target_name}. RMSE = {rmse:.4f}, R2 = {r2:.4f}")
+        
+        print("Huấn luyện hoàn tất.")
+        return self.metrics
+    
+    def plot_predictions(self, y_test, y_pred, target_name):
+        """Vẽ biểu đồ dự báo theo kiểu tương tự RandomForestTrainer"""
+        plt.figure(figsize=(14, 10))
+        
+        # Đảm bảo dữ liệu không có NaN và đồng bộ kích thước
+        y_test = y_test.dropna()
+        y_pred = y_pred[:len(y_test)]
+
+        # Subplot 1: Đường chuỗi thời gian
+        plt.subplot(2, 2, 1)
+        plt.plot(y_test.values[:100], 'k-', label='Thực tế', linewidth=1.5)
+        plt.plot(y_pred[:100], 'b-', label='Dự báo', linewidth=1.5, alpha=0.8)
+        plt.title(f'LightGBM: Dự báo {target_name}: 100 mẫu đầu tiên')
+        plt.xlabel('Mẫu dữ liệu')
+        plt.ylabel(target_name)
+        plt.legend()
+        plt.grid(True, linestyle='--', alpha=0.7)
+        
+        # Subplot 2: Scatter plot giá trị thực tế và dự báo
+        plt.subplot(2, 2, 2)
+        plt.scatter(y_test, y_pred, alpha=0.5, s=10)
+        plt.plot([y_test.min(), y_test.max()], [y_test.min(), y_test.max()], 'r--')
+        plt.title(f'Thực tế vs Dự báo (R² = {r2_score(y_test, y_pred):.4f})')
+        plt.xlabel('Giá trị thực tế')
+        plt.ylabel('Giá trị dự báo')
+        plt.grid(True, linestyle='--', alpha=0.7)
+        
+        # Subplot 3: Biểu đồ phân phối lỗi (residual plot)
+        plt.subplot(2, 2, 3)
+        residuals = y_test - y_pred
+        plt.hist(residuals, bins=30, alpha=0.7, color='skyblue', edgecolor='black')
+        plt.axvline(x=0, color='red', linestyle='--')
+        plt.title(f'Phân phối lỗi (RMSE = {np.sqrt(mean_squared_error(y_test, y_pred)):.4f})')
+        plt.xlabel('Lỗi (Thực tế - Dự báo)')
+        plt.ylabel('Tần suất')
+        plt.grid(True, linestyle='--', alpha=0.7)
+        
+        # Subplot 4: Residual scatter plot
+        plt.subplot(2, 2, 4)
+        plt.scatter(y_pred, residuals, alpha=0.5, s=10)
+        plt.axhline(y=0, color='red', linestyle='--')
+        plt.title('Đồ thị phân tán lỗi')
+        plt.xlabel('Giá trị dự báo')
+        plt.ylabel('Lỗi')
+        plt.grid(True, linestyle='--', alpha=0.7)
+
+        plt.tight_layout()
+        
+        # Tạo thư mục lưu hình ảnh
+        plots_dir = os.path.join(project_root, 'backend', 'ml', 'evaluation', 'plots', 'lgb')
+        os.makedirs(plots_dir, exist_ok=True)
+        
+        plt.savefig(os.path.join(plots_dir, f'{target_name}_prediction.png'), dpi=300)
+        plt.close()
+
+    def save_models(self):
+        """Lưu mô hình với cấu trúc giống như train_rf_model.py"""
+        if self.feature_list_for_scale is None:
+            # Cập nhật danh sách đặc trưng nếu chưa được gán
+            self.feature_list_for_scale = [
+                'hour', 'day', 'month', 'day_of_week', 'day_of_year',
+                'is_spring', 'is_summer', 'is_autumn', 'is_winter',
+                'season_sin', 'season_cos',
+                'elevation_m', 'terrain_lowland', 'terrain_hills', 'terrain_highland', 'terrain_mountain',
+                'temperature_lag_1', 'temperature_lag_2', 'temperature_lag_3',
+                'temperature_rolling_mean_3', 'temperature_rolling_mean_6', 'temperature_rolling_mean_12',
+                'humidity_lag_1', 'humidity_lag_2', 'humidity_lag_3',
+                'humidity_rolling_mean_3', 'humidity_rolling_mean_6', 'humidity_rolling_mean_12',
+                'wind_speed_lag_1', 'wind_speed_lag_2', 'wind_speed_lag_3',
+                'wind_speed_rolling_mean_3', 'wind_speed_rolling_mean_6', 'wind_speed_rolling_mean_12',
+                'pressure_lag_1', 'pressure_lag_2', 'pressure_lag_3',
+                'pressure_rolling_mean_3', 'pressure_rolling_mean_6', 'pressure_rolling_mean_12',
+                'precipitation_lag_1', 'precipitation_lag_2', 'precipitation_lag_3',
+                'precipitation_rolling_mean_3', 'precipitation_rolling_mean_6', 'precipitation_rolling_mean_12',
+                'cloud_lag_1', 'cloud_lag_2', 'cloud_lag_3',
+                'cloud_rolling_mean_3', 'cloud_rolling_mean_6', 'cloud_rolling_mean_12',
+                'uv_index_lag_1', 'uv_index_lag_2', 'uv_index_lag_3',
+                'uv_index_rolling_mean_3', 'uv_index_rolling_mean_6', 'uv_index_rolling_mean_12',
+                'visibility_lag_1', 'visibility_lag_2', 'visibility_lag_3',
+                'visibility_rolling_mean_3', 'visibility_rolling_mean_6', 'visibility_rolling_mean_12',
+                'rain_probability_lag_1', 'rain_probability_lag_2', 'rain_probability_lag_3',
+                'rain_probability_rolling_mean_3', 'rain_probability_rolling_mean_6', 'rain_probability_rolling_mean_12',
+                'dewpoint_lag_1', 'dewpoint_lag_2', 'dewpoint_lag_3',
+                'dewpoint_rolling_mean_3', 'dewpoint_rolling_mean_6', 'dewpoint_rolling_mean_12',
+                'airport_code_encoded'
+            ]
+        
+        # Đóng gói kết quả
+        data_to_save = {
+            'models': self.models,
+            'scalers': self.scalers,
+            'metrics': self.metrics,
+            'feature_list_for_scale': self.feature_list_for_scale
+        }
+        
+        # Lưu mô hình
+        models_dir = os.path.join(project_root, 'backend', 'ml', 'models')
+        os.makedirs(models_dir, exist_ok=True)
+        joblib.dump(data_to_save, os.path.join(models_dir, 'lgb_weather_models.joblib'))
+        
+        print(f"Đã lưu mô hình LightGBM tại {os.path.join(models_dir, 'lgb_weather_models.joblib')}")
+        
+        return data_to_save
+
 def train_lgb_model():
     """Huấn luyện mô hình LightGBM cho dự báo thời tiết"""
     print("Bắt đầu huấn luyện mô hình LightGBM...")
     
-    # Khởi tạo preprocessor
-    preprocessor = WeatherDataPreprocessor()
+    # Khởi tạo trainer
+    trainer = LightGBMTrainer()
     
     # Đường dẫn đến dữ liệu
     data_path = os.path.join(project_root, 'backend', 'ml', 'data', 'weather_dataset_with_season_terrain.csv')
     
-    # Tiền xử lý dữ liệu
-    print("Đang tiền xử lý dữ liệu...")
-    df = preprocessor.preprocess(data_path)
+    # Chuẩn bị dữ liệu
+    X, y_dict, feature_list_for_scale = trainer.prepare_data(data_path)
     
-    # Xác định các cột đích cần dự báo
-    targets = ['temperature', 'humidity', 'wind_speed', 'pressure', 
-              'precipitation', 'cloud', 'uv_index', 'visibility', 
-              'rain_probability', 'dewpoint', 'gust_speed', 'snow_probability',
-              'condition_code', 'wind_direction']
+    # Huấn luyện mô hình
+    metrics = trainer.train(X, y_dict, feature_list_for_scale)
     
-    # Tách features và targets
-    X = df.drop(targets, axis=1)
-    y_dict = {target: df[target] for target in targets}
-    
-    # Danh sách các cột cần chuẩn hóa
-    feature_list_for_scale = [col for col in X.columns if col not in targets]
-    
-    # Dictionary lưu mô hình và scaler
-    models = {}
-    scalers = {}
-    metrics = {}
-    
-    # Huấn luyện mô hình cho từng mục tiêu
-    for target_name, y in y_dict.items():
-        print(f"Đang huấn luyện mô hình cho {target_name}...")
-        
-        # Chia tập dữ liệu
-        X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-        
-        # Chuẩn hóa dữ liệu
-        scaler = StandardScaler()
-        X_train_scaled = X_train.copy()
-        X_test_scaled = X_test.copy()
-        
-        X_train_scaled[feature_list_for_scale] = scaler.fit_transform(X_train[feature_list_for_scale])
-        X_test_scaled[feature_list_for_scale] = scaler.transform(X_test[feature_list_for_scale])
-        
-        # Lưu scaler
-        scalers[target_name] = scaler
-        
-        # Khởi tạo và huấn luyện mô hình
-        model = lgb.LGBMRegressor(n_estimators=100, learning_rate=0.1, random_state=42, n_jobs=-1)
-        model.fit(X_train_scaled, y_train)
-        
-        # Dự báo
-        y_pred = model.predict(X_test_scaled)
-        
-        # Tính toán các chỉ số đánh giá
-        mse = mean_squared_error(y_test, y_pred)
-        rmse = np.sqrt(mse)
-        r2 = r2_score(y_test, y_pred)
-        mae = mean_absolute_error(y_test, y_pred)
-        
-        # Lưu mô hình và metrics
-        models[target_name] = model
-        metrics[target_name] = {
-            'rmse': rmse,
-            'r2': r2,
-            'mae': mae
-        }
-        
-        # Vẽ biểu đồ dự báo
-        plt.figure(figsize=(10, 6))
-        plt.plot(y_test[:100], label='Thực tế', color='black', linestyle='--')
-        plt.plot(y_pred[:100], label='Dự báo', color='red')
-        plt.title(f'LightGBM: Dự báo {target_name}')
-        plt.xlabel('Mẫu dữ liệu')
-        plt.ylabel(target_name)
-        plt.legend()
-        
-        # Tạo thư mục để lưu biểu đồ
-        plots_dir = os.path.join(project_root, 'backend', 'ml', 'evaluation', 'plots', 'lgb')
-        os.makedirs(plots_dir, exist_ok=True)
-        
-        plt.savefig(os.path.join(plots_dir, f'{target_name}_prediction.png'))
-        plt.close()
-        
-        print(f"Hoàn thành huấn luyện cho {target_name}. RMSE = {rmse:.4f}, R2 = {r2:.4f}")
-    
-    # Đóng gói kết quả
-    data_to_save = {
-        'models': models,
-        'scalers': scalers,
-        'metrics': metrics,
-        'feature_list_for_scale': feature_list_for_scale
-    }
+    # In metrics
+    for target, metric in metrics.items():
+        print(f"{target} - RMSE: {metric['rmse']:.4f}, R²: {metric['r2']:.4f}")
     
     # Lưu mô hình
-    models_dir = os.path.join(project_root, 'backend', 'ml', 'models')
-    os.makedirs(models_dir, exist_ok=True)
-    joblib.dump(data_to_save, os.path.join(models_dir, 'lgb_weather_models.joblib'))
+    trainer.save_models()
     
-    print(f"Đã lưu mô hình LightGBM tại {os.path.join(models_dir, 'lgb_weather_models.joblib')}")
+    print("Quá trình huấn luyện mô hình LightGBM đã hoàn tất!")
     
-    return data_to_save
+    return trainer
 
 if __name__ == "__main__":
     train_lgb_model()
