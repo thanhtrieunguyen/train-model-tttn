@@ -7,10 +7,10 @@ import seaborn as sns
 from datetime import datetime
 import argparse
 
-# Thêm đường dẫn gốc của dự án vào sys.path
 current_dir = os.path.dirname(__file__)
 project_root = os.path.abspath(os.path.join(current_dir, '../../..'))
 sys.path.append(project_root)
+from backend.ml.config.matplotlib_config import *
 
 def parse_args():
     parser = argparse.ArgumentParser(description='Tạo báo cáo từ kết quả đánh giá mô hình')

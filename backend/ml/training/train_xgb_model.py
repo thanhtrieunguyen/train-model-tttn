@@ -16,6 +16,7 @@ project_root = os.path.abspath(os.path.join(current_dir, '../../..'))
 sys.path.append(project_root)
 
 from backend.ml.data.data_preprocessing import WeatherDataPreprocessor
+from backend.ml.config.feature_config import FeatureManager
 
 class XGBoostTrainer:
     def __init__(self):
@@ -168,6 +169,9 @@ class XGBoostTrainer:
             )
             model.fit(X_train_scaled, y_train)
             
+            # Lưu danh sách tính năng cho từng mô hình
+            FeatureManager.save_feature_names(feature_list_for_scale, target_name, 'XGBoost')
+            
             # Dự báo
             y_pred = model.predict(X_test_scaled)
             
@@ -314,7 +318,8 @@ class XGBoostTrainer:
             'models': self.models,
             'scalers': self.scalers,
             'metrics': self.metrics,
-            'feature_list_for_scale': self.feature_list_for_scale
+            'feature_list_for_scale': self.feature_list_for_scale,
+            'model_type': 'XGBoost'  # Thêm thông tin loại mô hình
         }
         
         # Lưu mô hình

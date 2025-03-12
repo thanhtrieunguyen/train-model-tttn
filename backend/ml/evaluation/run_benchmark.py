@@ -16,6 +16,12 @@ sys.path.append(project_root)
 
 from backend.ml.prediction.weather_prediction import WeatherPredictionService
 
+# Thêm vào đầu tệp
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+from backend.ml.config.matplotlib_config import *
+
 def parse_args():
     parser = argparse.ArgumentParser(description='Đo hiệu suất của các mô hình dự báo thời tiết')
     

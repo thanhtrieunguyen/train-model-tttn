@@ -1,9 +1,10 @@
+import sys
+import os
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import os
 import joblib
-import sys
 from sklearn.metrics import mean_squared_error, r2_score, mean_absolute_error, mean_absolute_percentage_error
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -18,6 +19,7 @@ project_root = os.path.abspath(os.path.join(current_dir, '../../..'))
 sys.path.append(project_root)
 
 from backend.ml.data.data_preprocessing import WeatherDataPreprocessor
+from backend.ml.config.matplotlib_config import *
 
 class ModelEvaluator:
     def __init__(self):

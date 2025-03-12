@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 
 from backend.ml.data.data_preprocessing import WeatherDataPreprocessor
 from utils.condition_code_mapper import ConditionCodeMapper
+from backend.ml.config.feature_config import FeatureManager
 
 # Đường dẫn đến các file dữ liệu
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -92,6 +93,8 @@ class WeatherPredictionService:
             data = joblib.load(self.path)
             self.feature_list_for_scale = data.get('feature_list_for_scale')
             self.best_model_info = data.get('best_model_info')
+            # Lấy loại mô hình
+            self.model_type = data.get('model_type', 'RandomForest')  # Default to RandomForest if not specified
             
             if self.best_model_info:
                 print("Đã tải thông tin mô hình tốt nhất:")
@@ -110,6 +113,8 @@ class WeatherPredictionService:
             self.scalers = data['scalers']
             self.feature_list_for_scale = data.get('feature_list_for_scale')
             self.best_model_info = data.get('best_model_info')
+            # Lấy loại mô hình
+            self.model_type = data.get('model_type', 'RandomForest')  # Default to RandomForest if not specified
             
             return True
         except Exception as e:
@@ -241,7 +246,7 @@ class WeatherPredictionService:
 
         # Tìm code chính xác
         for condition in conditions:
-            if condition["code"] == code:
+            if (condition["code"] == code):
                 text = condition["day"] if is_day else condition["night"]
                 icon = condition["icon"].replace("day", "day" if is_day else "night")
                 closest_code = condition["code"]
@@ -327,8 +332,14 @@ class WeatherPredictionService:
                     continue
                     
                 scaler = self.scalers[target]
-                input_data_scaled = scaler.transform(input_data)
-                prediction[target] = round(float(model.predict(input_data_scaled)[0]), 1)
+                try:
+                    # Đảm bảo thứ tự các tính năng đúng như lúc huấn luyện
+                    input_data = FeatureManager.ensure_feature_order(input_data, target, self.model_type)
+                    input_data_scaled = scaler.transform(input_data)
+                    prediction[target] = round(float(model.predict(input_data_scaled)[0]), 1)
+                except Exception as e:
+                    print(f"Lỗi khi tạo dự báo với mô hình {self.model_type}: {str(e)}")
+                    return None
                 
                 # Nếu dự đoán là wind_direction, chuyển sang ký tự
                 if target == 'wind_direction':
