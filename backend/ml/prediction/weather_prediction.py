@@ -7,6 +7,7 @@ import joblib
 from datetime import datetime, timedelta
 
 from backend.ml.data.data_preprocessing import WeatherDataPreprocessor
+from utils.condition_code_mapper import ConditionCodeMapper
 
 # Đường dẫn đến các file dữ liệu
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -318,9 +319,13 @@ class WeatherPredictionService:
             # Chuẩn bị dữ liệu đầu vào (dựa trên historical_data hiện tại)
             input_data = self.prepare_input(historical_data, future_time)
 
-            # Dự báo cho từng mục tiêu (temperature, humidity, ...)
+            # Dự báo cho từng mục tiêu (temperature, humidity, ...) ngoại trừ condition_code
             prediction = {}
             for target, model in self.models.items():
+                # Bỏ qua dự đoán condition_code từ model
+                if target == 'condition_code':
+                    continue
+                    
                 scaler = self.scalers[target]
                 input_data_scaled = scaler.transform(input_data)
                 prediction[target] = round(float(model.predict(input_data_scaled)[0]), 1)
@@ -329,9 +334,38 @@ class WeatherPredictionService:
                 if target == 'wind_direction':
                     prediction['wind_direction_symbol'] = self.convert_wind_direction_to_symbol(prediction[target])
 
-            # Xử lý condition_code
-            condition_code = int(prediction.get('condition_code', 0))
-            is_day = 6 <= future_time.hour <= 18  # Giả định giờ ban ngày từ 6h sáng đến 18h
+            # Đảm bảo giá trị không âm
+            for key in ['temperature', 'humidity', 'wind_speed', 'pressure', 'visibility', 'uv_index']:
+                if key in prediction and prediction[key] < 0:
+                    prediction[key] = 0
+                    
+            # Giá trị humidity không vượt quá 100%
+            if 'humidity' in prediction and prediction['humidity'] > 100:
+                prediction['humidity'] = 100
+                
+            # Xác định condition_code dựa trên các thông số dự báo
+            temp = prediction.get('temperature', 0)
+            humidity = prediction.get('humidity', 0)
+            wind_speed = prediction.get('wind_speed', 0)
+            precip_mm = prediction.get('precipitation', 0)
+            cloud = prediction.get('cloud', 0)
+            visibility = prediction.get('visibility', 10) # giá trị mặc định 10km nếu không có
+            pressure = prediction.get('pressure', 1013) # giá trị mặc định 1013hPa nếu không có
+            is_day = 1 if 6 <= future_time.hour <= 18 else 0
+            
+            # Sử dụng ConditionCodeMapper để xác định condition_code
+            condition_code = ConditionCodeMapper.get_condition_code(
+                precipitation=precip_mm,
+                temp=temp,
+                humidity=humidity,
+                wind_speed=wind_speed,
+                cloud_cover=cloud,
+                visibility=visibility,
+                pressure=pressure,
+                is_day=is_day
+            )
+            
+            # Lấy thông tin chi tiết về condition
             condition_info = self.get_condition_info(condition_code, is_day)
             
             condition = {
@@ -339,6 +373,9 @@ class WeatherPredictionService:
                 "text": condition_info["condition_text"],
                 "icon": condition_info["icon"]
             }
+
+            # Thêm condition_code vào dữ liệu dự báo để dùng cho historical_data
+            prediction['condition_code'] = condition_code
                 
             # Lưu kết quả dự báo vào historical_data
             historical_data.append({
@@ -358,15 +395,6 @@ class WeatherPredictionService:
             df_historical = self.preprocessor.handle_missing_values(df_historical)
             historical_data = df_historical.to_dict(orient='records')  # Cập nhật lại historical_data
 
-            # Đảm bảo giá trị không âm
-            for key in ['temperature', 'humidity', 'wind_speed', 'pressure', 'visibility', 'uv_index']:
-                if key in prediction and prediction[key] < 0:
-                    prediction[key] = 0
-                    
-            # Giá trị humidity không vượt quá 100%
-            if 'humidity' in prediction and prediction['humidity'] > 100:
-                prediction['humidity'] = 100
-
             # Lưu kết quả dự báo
             predictions.append({
                 "timestamp": future_time.isoformat(),
@@ -381,12 +409,13 @@ class WeatherPredictionService:
                 "uv_index": prediction["uv_index"],
                 "visibility": prediction["visibility"],
                 "condition": condition,
+                "condition_code": condition_code,  # Thêm condition_code vào kết quả
                 "dewpoint": prediction.get("dewpoint", 0),
                 "gust_speed": prediction.get("gust_speed", 0),
                 "rain_probability": prediction.get("rain_probability", 0),
                 "snow_probability": prediction.get("snow_probability", 0),
-                # Thêm thông tin về mô hình được sử dụng
-                "model_info": self.best_model_info[target] if self.best_model_info and target in self.best_model_info else {}
+                # Chọn một model_info phù hợp để hiển thị
+                "model_info": self.best_model_info["temperature"] if self.best_model_info and "temperature" in self.best_model_info else {}
             })
         
         # Trả về kết quả dự báo kèm thông tin địa điểm

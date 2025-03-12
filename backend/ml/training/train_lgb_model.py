@@ -20,11 +20,20 @@ from backend.ml.data.data_preprocessing import WeatherDataPreprocessor
 class LightGBMTrainer:
     def __init__(self):
         self.model = lgb.LGBMRegressor(
-            n_estimators=100,
-            learning_rate=0.1,
+            n_estimators=300,         
+            learning_rate=0.05,       
+            max_depth=12,             
+            num_leaves=63,            
+            min_child_samples=100,     # Use instead of min_data_in_leaf
+            colsample_bytree=0.8,      # Use instead of feature_fraction
+            subsample=0.8,             # Use instead of bagging_fraction
+            subsample_freq=5,          # Use instead of bagging_freq
+            reg_alpha=0.5,             # Use instead of lambda_l1
+            reg_lambda=0.5,            # Use instead of lambda_l2
             random_state=42,
             n_jobs=-1
         )
+        
         self.preprocessor = WeatherDataPreprocessor()
         self.feature_list_for_scale = None
         self.models = {}
@@ -36,23 +45,99 @@ class LightGBMTrainer:
         print("Đang tiền xử lý dữ liệu...")
         df = self.preprocessor.preprocess(data_path)
         
+        # Chuyển đổi hướng gió từ góc sang dạng vector (sin, cos)
+        df['wind_direction_sin'] = np.sin(np.radians(df['wind_direction']))
+        df['wind_direction_cos'] = np.cos(np.radians(df['wind_direction']))
+        
+        # Loại bỏ condition_code và wind_direction khỏi danh sách targets
+        # Thêm wind_direction_sin và wind_direction_cos thay cho wind_direction
         targets = ['temperature', 'humidity', 'wind_speed', 'pressure', 
                   'precipitation', 'cloud', 'uv_index', 'visibility', 
                   'rain_probability', 'dewpoint', 'gust_speed', 'snow_probability',
-                  'condition_code', 'wind_direction']
+                  'wind_direction_sin', 'wind_direction_cos']  # Thay thế wind_direction
 
-        X = df.drop(targets, axis=1)
+        X = df.drop(targets + ['wind_direction'], axis=1)  # Loại bỏ wind_direction từ features
         y_dict = {target: df[target] for target in targets}
             
         # Tạo feature_list_for_scale sau khi tách target
-        feature_list_for_scale = [col for col in X.columns if col not in targets]
+        feature_list_for_scale = [col for col in X.columns if col not in targets and col != 'condition_code']
         self.feature_list_for_scale = feature_list_for_scale
 
         return X, y_dict, feature_list_for_scale
 
+    def convert_wind_components_to_direction(self, sin_pred, cos_pred):
+        """Chuyển đổi từ thành phần sin và cos thành góc hướng gió (0-360 độ)"""
+        directions = np.degrees(np.arctan2(sin_pred, cos_pred))
+        # Chuyển từ khoảng (-180, 180) sang khoảng (0, 360)
+        directions = (directions + 360) % 360
+        return directions
+    
+    def plot_wind_direction_predictions(self, y_test_sin, y_test_cos, y_pred_sin, y_pred_cos, target_name):
+        """Vẽ biểu đồ dự báo hướng gió từ các thành phần sin và cos"""
+        # Chuyển dự báo và thực tế từ sin/cos về góc (0-360)
+        y_test_angles = self.convert_wind_components_to_direction(y_test_sin, y_test_cos)
+        y_pred_angles = self.convert_wind_components_to_direction(y_pred_sin, y_pred_cos)
+        
+        # Tính toán sai số góc (xem xét tính tuần hoàn của góc)
+        angle_errors = np.minimum(np.abs(y_test_angles - y_pred_angles), 
+                                 360 - np.abs(y_test_angles - y_pred_angles))
+        mae = np.mean(angle_errors)
+        
+        plt.figure(figsize=(14, 10))
+        
+        # Subplot 1: So sánh góc thực tế và dự báo
+        plt.subplot(2, 2, 1, polar=True)
+        plt.scatter(np.radians(y_test_angles[:100]), np.ones(min(100, len(y_test_angles))), 
+                   c='blue', alpha=0.5, label='Thực tế')
+        plt.scatter(np.radians(y_pred_angles[:100]), 0.8 * np.ones(min(100, len(y_pred_angles))), 
+                   c='red', alpha=0.5, label='Dự báo')
+        plt.title(f'LightGBM: Dự báo hướng gió: 100 mẫu đầu tiên\nMAE: {mae:.2f}°')
+        plt.legend()
+        
+        # Subplot 2: Histogram lỗi góc
+        plt.subplot(2, 2, 2)
+        plt.hist(angle_errors, bins=36, alpha=0.7)
+        plt.axvline(x=mae, color='red', linestyle='--', label=f'MAE: {mae:.2f}°')
+        plt.title('Phân phối lỗi góc')
+        plt.xlabel('Lỗi góc (độ)')
+        plt.ylabel('Tần suất')
+        plt.legend()
+        
+        # Subplot 3: Scatter plot các thành phần sin
+        plt.subplot(2, 2, 3)
+        plt.scatter(y_test_sin, y_pred_sin, alpha=0.5, s=10)
+        plt.plot([-1, 1], [-1, 1], 'r--')
+        plt.title(f'Thực tế vs Dự báo (sin)')
+        plt.xlabel('sin(wind_direction) thực tế')
+        plt.ylabel('sin(wind_direction) dự báo')
+        plt.grid(True, linestyle='--', alpha=0.7)
+        
+        # Subplot 4: Scatter plot các thành phần cos
+        plt.subplot(2, 2, 4)
+        plt.scatter(y_test_cos, y_pred_cos, alpha=0.5, s=10)
+        plt.plot([-1, 1], [-1, 1], 'r--')
+        plt.title(f'Thực tế vs Dự báo (cos)')
+        plt.xlabel('cos(wind_direction) thực tế')
+        plt.ylabel('cos(wind_direction) dự báo')
+        plt.grid(True, linestyle='--', alpha=0.7)
+
+        plt.tight_layout()
+        
+        # Tạo thư mục lưu hình ảnh
+        plots_dir = os.path.join(project_root, 'backend', 'ml', 'evaluation', 'plots', 'lgb')
+        os.makedirs(plots_dir, exist_ok=True)
+        
+        plt.savefig(os.path.join(plots_dir, f'{target_name}_prediction.png'), dpi=300)
+        plt.close()
+
     def train(self, X, y_dict, feature_list_for_scale):
         """Huấn luyện mô hình cho từng tham số thời tiết."""
         print("Đang huấn luyện mô hình...")
+        
+        # Track if we have trained both wind direction components to generate the plot later
+        sin_completed = False
+        cos_completed = False
+        
         for target_name, y in tqdm(y_dict.items()):
             print(f"\nĐang huấn luyện mô hình cho {target_name}...")
             
@@ -72,11 +157,20 @@ class LightGBMTrainer:
 
             # Huấn luyện mô hình
             model = lgb.LGBMRegressor(
-                n_estimators=100,
-                learning_rate=0.1,
+                n_estimators=300,         
+                learning_rate=0.05,       
+                max_depth=12,             
+                num_leaves=63,            
+                min_child_samples=100,     
+                colsample_bytree=0.8,      
+                subsample=0.8,             
+                subsample_freq=5,          
+                reg_alpha=0.5,             
+                reg_lambda=0.5,            
                 random_state=42,
                 n_jobs=-1
             )
+            
             model.fit(X_train_scaled, y_train)
             
             # Dự báo
@@ -102,10 +196,33 @@ class LightGBMTrainer:
                 'mape': mape
             }
             
-            # Vẽ biểu đồ dự báo
-            self.plot_predictions(y_test, y_pred, target_name)
+            # Lưu kết quả huấn luyện wind_direction components
+            if target_name == 'wind_direction_sin':
+                sin_completed = True
+                sin_pred = y_pred
+                sin_test = y_test
+            elif target_name == 'wind_direction_cos':
+                cos_completed = True
+                cos_pred = y_pred
+                cos_test = y_test
+            
+            # Vẽ biểu đồ dự báo (không phải wind direction components)
+            if target_name not in ['wind_direction_sin', 'wind_direction_cos']:
+                self.plot_predictions(y_test, y_pred, target_name)
             
             print(f"Hoàn thành huấn luyện cho {target_name}. RMSE = {rmse:.4f}, R2 = {r2:.4f}")
+        
+        # Sau khi huấn luyện tất cả các mục tiêu, tạo biểu đồ hướng gió nếu cả hai thành phần đã được huấn luyện
+        if sin_completed and cos_completed:
+            print("Vẽ biểu đồ dự báo hướng gió (wind_direction)...")
+            # Lấy dữ liệu cho sin và cos đã được dự đoán
+            self.plot_wind_direction_predictions(
+                sin_test, 
+                cos_test, 
+                sin_pred, 
+                cos_pred, 
+                'wind_direction'
+            )
         
         print("Huấn luyện hoàn tất.")
         return self.metrics
