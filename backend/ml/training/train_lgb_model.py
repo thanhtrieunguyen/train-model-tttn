@@ -25,12 +25,13 @@ class LightGBMTrainer:
             learning_rate=0.05,       
             max_depth=12,             
             num_leaves=63,            
-            min_child_samples=100,     # Use instead of min_data_in_leaf
-            colsample_bytree=0.8,      # Use instead of feature_fraction
-            subsample=0.8,             # Use instead of bagging_fraction
-            subsample_freq=5,          # Use instead of bagging_freq
-            reg_alpha=0.5,             # Use instead of lambda_l1
-            reg_lambda=0.5,            # Use instead of lambda_l2
+            min_child_samples=50,    # giảm từ 100 để tăng khả năng thực hiện split
+            min_split_gain=0.0,      # cho phép chấp nhận các split nhỏ
+            colsample_bytree=0.8,      
+            subsample=0.8,             
+            subsample_freq=5,          
+            reg_alpha=0.3,           # giảm regularization để không ngăn cản các split nhỏ
+            reg_lambda=0.3,          # giảm regularization
             random_state=42,
             n_jobs=-1
         )
