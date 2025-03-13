@@ -85,16 +85,29 @@ class RandomForestTrainer:
             self.scalers[target_name] = scaler
 
             # Train model
-            model = RandomForestRegressor(
-                n_estimators=300,           # Tăng số cây để đảm bảo độ chính xác
-                max_depth=15,               # Giữ vừa phải để tránh overfitting
-                min_samples_split=5,        # Tránh phân tách nhánh quá sớm
-                min_samples_leaf=10,        # Giúp mô hình ổn định hơn
-                max_features='sqrt',        # Giảm overfitting
-                bootstrap=True,             # Dùng bootstrap sampling
-                random_state=42,
-                n_jobs=-1
-            )
+            if target_name == 'wind_direction':
+                # Giảm số lượng job để giảm bộ nhớ dùng cho mô hình wind_direction
+                model = RandomForestRegressor(
+                    n_estimators=300,
+                    max_depth=15,
+                    min_samples_split=5,
+                    min_samples_leaf=10,
+                    max_features='sqrt',
+                    bootstrap=True,
+                    random_state=42,
+                    n_jobs=1   # thay đổi n_jobs thành 1 cho mục wind_direction
+                )
+            else:
+                model = RandomForestRegressor(
+                    n_estimators=300,           # Tăng số cây để đảm bảo độ chính xác
+                    max_depth=15,               # Giữ vừa phải để tránh overfitting
+                    min_samples_split=5,        # Tránh phân tách nhánh quá sớm
+                    min_samples_leaf=10,        # Giúp mô hình ổn định hơn
+                    max_features='sqrt',        # Giảm overfitting
+                    bootstrap=True,             # Dùng bootstrap sampling
+                    random_state=42,
+                    n_jobs=-1
+                )
             model.fit(X_train_scaled, y_train)
             
             # Lưu danh sách tính năng cho từng mô hình

@@ -3,6 +3,7 @@ thuctapenv/
 backend/ml/models/weather_models.joblib
 backend/ml/data/__pycache__/
 backend/ml/data/__pycache__/*
+backend\ml\evaluation\__pycache__
 backend/ml/models/modelfin/weather_models.joblib
 backend/ml/models/modelfin
 backend/ml/models/rating_chart_xgb
@@ -12,5 +13,4 @@ backend/ml/data/weather_dataset.csv
 weather_dataset1 (5).csv
 backend/ml/data/weather_dataset.csv
 backend/ml/data/weather_dataset_with_season_terrain.csv
-
 weather-alert-system.zip

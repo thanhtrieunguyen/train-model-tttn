@@ -34,10 +34,12 @@ class WeatherPredictor:
         """Prepare data for training."""
         df = self.preprocessor.preprocess(data_path)
         
-        targets = ['temperature', 'humidity', 'wind_speed', 'pressure', 
-                  'precipitation', 'cloud', 'uv_index', 'visibility', 
-                  'rain_probability', 'dewpoint', 'gust_speed', 'snow_probability',
-                  'condition_code', 'wind_direction']
+        targets = [
+            'temperature', 'humidity', 'wind_speed', 'pressure', 
+            'precipitation', 'cloud', 'uv_index', 'visibility', 
+            'rain_probability', 'dewpoint', 'gust_speed', 'snow_probability',
+            'wind_direction'
+        ]
 
         X = df.drop(targets, axis=1)
         y_dict = {target: df[target] for target in targets}
