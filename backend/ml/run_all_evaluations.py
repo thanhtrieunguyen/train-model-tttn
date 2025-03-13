@@ -114,11 +114,11 @@ def main():
     print("\nBước 5: So sánh dự báo và benchmark hiệu suất")
     
     # Chạy so sánh dự báo
-    run_command(
-        f"python {os.path.join(project_root, 'backend', 'ml', 'prediction', 'compare_forecasts.py')} "
-        f"--location {args.location} --api-key {args.api_key} --hours 24",
-        "5.1. So sánh dự báo từ các mô hình"
-    )
+    # run_command(
+    #     f"python {os.path.join(project_root, 'backend', 'ml', 'prediction', 'compare_forecasts.py')} "
+    #     f"--location {args.location} --api-key {args.api_key} --hours 24",
+    #     "5.1. So sánh dự báo từ các mô hình"
+    # )
     
     # Chạy benchmark hiệu suất
     run_command(

@@ -1,0 +1,105 @@
+2025-03-13 19:10:11,942 - INFO - Starting model evaluation workflow
+2025-03-13 19:10:11,942 - INFO - Running: Creating necessary directories
+2025-03-13 19:10:12,021 - INFO - Running: Evaluating models
+2025-03-13 19:10:17,776 - ERROR - Error message: Command '['python', 'D:\\TITI\\train-model-tttn\\backend\\ml\\evaluation\\model_evaluator.py']' returned non-zero exit status 1.
+2025-03-13 19:10:17,776 - WARNING - Model evaluation failed, but continuing with report generation
+2025-03-13 19:10:17,776 - INFO - Running: Generating evaluation report
+2025-03-13 19:10:18,729 - ERROR - Error message: Command '['python', 'D:\\TITI\\train-model-tttn\\backend\\ml\\evaluation\\generate_report.py', '--force']' returned non-zero exit status 1.
+2025-03-13 19:10:18,729 - INFO - Model evaluation workflow completed
+2025-03-13 19:12:49,528 - INFO - Starting model evaluation workflow
+2025-03-13 19:12:49,529 - INFO - Running: Creating necessary directories
+2025-03-13 19:12:49,581 - INFO - [SUCCESS] Creating necessary directories
+2025-03-13 19:12:49,581 - INFO - Running: Evaluating models
+2025-03-13 19:12:50,530 - ERROR - [FAILED] Evaluating models
+2025-03-13 19:12:50,531 - ERROR - Error message: Command '['python', 'D:\\TITI\\train-model-tttn\\backend\\ml\\evaluation\\model_evaluator.py']' returned non-zero exit status 1.
+2025-03-13 19:12:50,531 - WARNING - Model evaluation failed, but continuing with report generation
+2025-03-13 19:12:50,531 - INFO - Running: Generating evaluation report
+2025-03-13 19:12:51,139 - ERROR - [FAILED] Generating evaluation report
+2025-03-13 19:12:51,139 - ERROR - Error message: Command '['python', 'D:\\TITI\\train-model-tttn\\backend\\ml\\evaluation\\generate_report.py', '--force']' returned non-zero exit status 1.
+2025-03-13 19:12:51,140 - INFO - Model evaluation workflow completed
+2025-03-13 19:16:45,847 - INFO - Starting model evaluation workflow
+2025-03-13 19:16:45,847 - INFO - Running: Creating necessary directories
+2025-03-13 19:16:45,899 - INFO - [SUCCESS] Creating necessary directories
+2025-03-13 19:16:45,899 - INFO - Running: Evaluating models
+2025-03-13 19:16:46,805 - ERROR - [FAILED] Evaluating models
+2025-03-13 19:16:46,805 - ERROR - Error message: Command '['python', 'D:\\TITI\\train-model-tttn\\backend\\ml\\evaluation\\model_evaluator.py']' returned non-zero exit status 1.
+2025-03-13 19:16:46,805 - WARNING - Model evaluation failed, but continuing with report generation
+2025-03-13 19:16:46,805 - INFO - Running: Generating evaluation report
+2025-03-13 19:16:47,398 - ERROR - [FAILED] Generating evaluation report
+2025-03-13 19:16:47,398 - ERROR - Error message: Command '['python', 'D:\\TITI\\train-model-tttn\\backend\\ml\\evaluation\\generate_report.py', '--force']' returned non-zero exit status 1.
+2025-03-13 19:16:47,398 - INFO - Model evaluation workflow completed
+2025-03-13 19:24:27,423 - INFO - Starting model evaluation workflow
+2025-03-13 19:24:27,424 - INFO - Running: Creating necessary directories
+2025-03-13 19:24:27,473 - INFO - [SUCCESS] Creating necessary directories
+2025-03-13 19:24:27,473 - INFO - Running: Evaluating models
+2025-03-13 19:24:34,131 - ERROR - [FAILED] Evaluating models (exit code: 1)
+2025-03-13 19:24:34,131 - ERROR - Error output: D:\Python3.12\Lib\site-packages\sklearn\base.py:380: InconsistentVersionWarning: Trying to unpickle estimator DecisionTreeRegressor from version 1.6.1 when using version 1.6.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+D:\Python3.12\Lib\site-packages\sklearn\base.py:380: InconsistentVersionWarning: Trying to unpickle estimator RandomForestRegressor from version 1.6.1 when using version 1.6.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+D:\Python3.12\Lib\site-packages\sklearn\base.py:380: InconsistentVersionWarning: Trying to unpickle estimator StandardScaler from version 1.6.1 when using version 1.6.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+L\u1ed7i không xác \u0111\u1ecbnh: No module named 'xgboost'
+
+2025-03-13 19:24:34,131 - WARNING - Model evaluation encountered issues, but continuing with report generation
+2025-03-13 19:24:34,131 - INFO - Running: Generating evaluation report
+2025-03-13 19:24:34,925 - ERROR - [FAILED] Generating evaluation report (exit code: 1)
+2025-03-13 19:24:34,925 - ERROR - Error output: Traceback (most recent call last):
+  File "D:\TITI\train-model-tttn\backend\ml\evaluation\generate_report.py", line 6, in <module>
+    import seaborn as sns
+ModuleNotFoundError: No module named 'seaborn'
+
+2025-03-13 19:24:34,925 - INFO - Model evaluation workflow completed
+2025-03-13 19:25:03,242 - INFO - Starting model evaluation workflow
+2025-03-13 19:25:03,242 - INFO - Running: Creating necessary directories
+2025-03-13 19:25:03,290 - INFO - [SUCCESS] Creating necessary directories
+2025-03-13 19:25:03,290 - INFO - Running: Evaluating models
+2025-03-13 19:25:09,610 - ERROR - [FAILED] Evaluating models (exit code: 1)
+2025-03-13 19:25:09,610 - ERROR - Error output: D:\Python3.12\Lib\site-packages\sklearn\base.py:380: InconsistentVersionWarning: Trying to unpickle estimator DecisionTreeRegressor from version 1.6.1 when using version 1.6.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+D:\Python3.12\Lib\site-packages\sklearn\base.py:380: InconsistentVersionWarning: Trying to unpickle estimator RandomForestRegressor from version 1.6.1 when using version 1.6.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+D:\Python3.12\Lib\site-packages\sklearn\base.py:380: InconsistentVersionWarning: Trying to unpickle estimator StandardScaler from version 1.6.1 when using version 1.6.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+L\u1ed7i không xác \u0111\u1ecbnh: No module named 'xgboost'
+
+2025-03-13 19:25:09,610 - WARNING - Model evaluation encountered issues, but continuing with report generation
+2025-03-13 19:25:09,610 - INFO - Running: Generating evaluation report
+2025-03-13 19:25:10,375 - ERROR - [FAILED] Generating evaluation report (exit code: 1)
+2025-03-13 19:25:10,375 - ERROR - Error output: Traceback (most recent call last):
+  File "D:\TITI\train-model-tttn\backend\ml\evaluation\generate_report.py", line 6, in <module>
+    import seaborn as sns
+ModuleNotFoundError: No module named 'seaborn'
+
+2025-03-13 19:25:10,375 - INFO - Model evaluation workflow completed
+2025-03-13 19:27:51,059 - INFO - Starting model evaluation workflow
+2025-03-13 19:27:51,059 - INFO - Running: Creating necessary directories
+2025-03-13 19:27:51,109 - INFO - [SUCCESS] Creating necessary directories
+2025-03-13 19:27:51,109 - INFO - Running: Evaluating models
+2025-03-13 19:27:56,774 - ERROR - [FAILED] Evaluating models (exit code: 1)
+2025-03-13 19:27:56,774 - ERROR - Error output: D:\Python3.12\Lib\site-packages\sklearn\base.py:380: InconsistentVersionWarning: Trying to unpickle estimator DecisionTreeRegressor from version 1.6.1 when using version 1.6.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+D:\Python3.12\Lib\site-packages\sklearn\base.py:380: InconsistentVersionWarning: Trying to unpickle estimator RandomForestRegressor from version 1.6.1 when using version 1.6.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+D:\Python3.12\Lib\site-packages\sklearn\base.py:380: InconsistentVersionWarning: Trying to unpickle estimator StandardScaler from version 1.6.1 when using version 1.6.0. This might lead to breaking code or invalid results. Use at your own risk. For more info please refer to:
+https://scikit-learn.org/stable/model_persistence.html#security-maintainability-limitations
+  warnings.warn(
+L\u1ed7i không xác \u0111\u1ecbnh: No module named 'xgboost'
+
+2025-03-13 19:27:56,774 - WARNING - Model evaluation encountered issues, but continuing with report generation
+2025-03-13 19:27:56,774 - INFO - Running: Generating evaluation report
+2025-03-13 19:27:57,504 - ERROR - [FAILED] Generating evaluation report (exit code: 1)
+2025-03-13 19:27:57,504 - ERROR - Error output: Traceback (most recent call last):
+  File "D:\TITI\train-model-tttn\backend\ml\evaluation\generate_report.py", line 6, in <module>
+    import seaborn as sns
+ModuleNotFoundError: No module named 'seaborn'
+
+2025-03-13 19:27:57,504 - INFO - Model evaluation workflow completed

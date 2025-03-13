@@ -141,16 +141,20 @@ class XGBoostTrainer:
             print(f"\nĐang huấn luyện mô hình cho {target_name}...")
             
             X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=0.2, random_state=42
+                X, y, test_size=0.3, random_state=42
             )
 
             # Chuẩn hóa dữ liệu
-            scaler = StandardScaler()
-            X_train_scaled = X_train.copy()
-            X_test_scaled = X_test.copy()
+            # scaler = StandardScaler()
+            # X_train_scaled = X_train.copy()
+            # X_test_scaled = X_test.copy()
             
-            X_train_scaled[feature_list_for_scale] = scaler.fit_transform(X_train[feature_list_for_scale])
-            X_test_scaled[feature_list_for_scale] = scaler.transform(X_test[feature_list_for_scale])
+            # X_train_scaled[feature_list_for_scale] = scaler.fit_transform(X_train[feature_list_for_scale])
+            # X_test_scaled[feature_list_for_scale] = scaler.transform(X_test[feature_list_for_scale])
+            
+            scaler = StandardScaler()
+            X_train_scaled = scaler.fit_transform(X_train[feature_list_for_scale])
+            X_test_scaled = scaler.transform(X_test[feature_list_for_scale])
             
             self.scalers[target_name] = scaler
 

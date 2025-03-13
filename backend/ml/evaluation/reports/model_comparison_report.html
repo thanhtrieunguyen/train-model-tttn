@@ -1,0 +1,512 @@
+
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Báo cáo so sánh các mô hình dự báo thời tiết</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+        <style>
+            body { padding: 20px; }
+            .section { margin-bottom: 30px; }
+            .chart-container { margin-bottom: 30px; }
+            pre { background-color: #f8f9fa; padding: 15px; border-radius: 5px; }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="section">
+                <h1 class="text-center mb-4">Báo cáo so sánh các mô hình dự báo thời tiết</h1>
+                <p class="text-secondary">Báo cáo được tạo lúc: 2025-03-13 22:19:13</p>
+            </div>
+            
+            <div class="section">
+                <h2>Tóm tắt</h2>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Mô hình tốt nhất</h5>
+                                <p>Dựa trên số lượng đặc trưng mà mỗi mô hình đạt hiệu suất tốt nhất:</p>
+                                <img src="charts\best_model_pie_chart.png" class="img-fluid" alt="Biểu đồ tròn thể hiện tỷ lệ mô hình tốt nhất">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Thống kê mô hình tốt nhất</h5>
+                                <table border="1" class="dataframe table table-striped table-hover">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Model</th>
+      <th>Best_Count</th>
+      <th>Percentage</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>XGBoost</td>
+      <td>9</td>
+      <td>75.000000</td>
+    </tr>
+    <tr>
+      <td>LightGBM</td>
+      <td>2</td>
+      <td>16.666667</td>
+    </tr>
+    <tr>
+      <td>RandomForest</td>
+      <td>1</td>
+      <td>8.333333</td>
+    </tr>
+  </tbody>
+</table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>Thống kê hiệu suất mô hình</h2>
+                <table border="1" class="dataframe table table-striped table-hover">
+  <thead>
+    <tr>
+      <th></th>
+      <th colspan="4" halign="left">RMSE</th>
+      <th colspan="4" halign="left">R2</th>
+      <th colspan="4" halign="left">MAE</th>
+    </tr>
+    <tr>
+      <th></th>
+      <th>mean</th>
+      <th>std</th>
+      <th>min</th>
+      <th>max</th>
+      <th>mean</th>
+      <th>std</th>
+      <th>min</th>
+      <th>max</th>
+      <th>mean</th>
+      <th>std</th>
+      <th>min</th>
+      <th>max</th>
+    </tr>
+    <tr>
+      <th>Model</th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>LightGBM</th>
+      <td>0.346315</td>
+      <td>0.501139</td>
+      <td>0.0</td>
+      <td>1.662879</td>
+      <td>0.991947</td>
+      <td>0.023234</td>
+      <td>0.918401</td>
+      <td>1.0</td>
+      <td>0.234626</td>
+      <td>0.377352</td>
+      <td>0.0</td>
+      <td>1.266459</td>
+    </tr>
+    <tr>
+      <th>RandomForest</th>
+      <td>1.681548</td>
+      <td>2.520930</td>
+      <td>0.0</td>
+      <td>7.243018</td>
+      <td>0.965270</td>
+      <td>0.044039</td>
+      <td>0.861263</td>
+      <td>1.0</td>
+      <td>1.020818</td>
+      <td>1.485585</td>
+      <td>0.0</td>
+      <td>4.427630</td>
+    </tr>
+    <tr>
+      <th>XGBoost</th>
+      <td>0.337747</td>
+      <td>0.456027</td>
+      <td>0.0</td>
+      <td>1.565881</td>
+      <td>0.992830</td>
+      <td>0.020610</td>
+      <td>0.927643</td>
+      <td>1.0</td>
+      <td>0.223054</td>
+      <td>0.345062</td>
+      <td>0.0</td>
+      <td>1.191783</td>
+    </tr>
+  </tbody>
+</table>
+            </div>
+            
+            <div class="section">
+                <h2>So sánh RMSE giữa các mô hình</h2>
+                <div class="chart-container">
+                    <img src="charts\RMSE_comparison.png" class="img-fluid" alt="So sánh RMSE">
+                </div>
+                <div class="chart-container">
+                    <img src="charts\rmse_heatmap.png" class="img-fluid" alt="Heat map RMSE">
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>So sánh R2 giữa các mô hình</h2>
+                <div class="chart-container">
+                    <img src="charts\R2_comparison.png" class="img-fluid" alt="So sánh R2">
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>So sánh MAE giữa các mô hình</h2>
+                <div class="chart-container">
+                    <img src="charts\MAE_comparison.png" class="img-fluid" alt="So sánh MAE">
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>Phân phối RMSE theo mô hình</h2>
+                <div class="chart-container">
+                    <img src="charts\rmse_distribution.png" class="img-fluid" alt="Phân phối RMSE">
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>Danh sách mô hình tốt nhất cho từng đặc trưng</h2>
+                <pre></pre>
+            </div>
+            
+            <div class="section">
+                <h2>Bảng so sánh đầy đủ</h2>
+                <table border="1" class="dataframe table table-striped table-hover">
+  <thead>
+    <tr style="text-align: right;">
+      <th>Target</th>
+      <th>Model</th>
+      <th>RMSE</th>
+      <th>R2</th>
+      <th>MAE</th>
+      <th>MAPE</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>cloud</td>
+      <td>RandomForest</td>
+      <td>6.635992</td>
+      <td>0.954258</td>
+      <td>4.427630</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>cloud</td>
+      <td>XGBoost</td>
+      <td>0.831107</td>
+      <td>0.999283</td>
+      <td>0.562730</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>cloud</td>
+      <td>LightGBM</td>
+      <td>1.018050</td>
+      <td>0.998923</td>
+      <td>0.675058</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>dewpoint</td>
+      <td>RandomForest</td>
+      <td>0.307585</td>
+      <td>0.994143</td>
+      <td>0.188175</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>dewpoint</td>
+      <td>XGBoost</td>
+      <td>0.138844</td>
+      <td>0.998807</td>
+      <td>0.093010</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>dewpoint</td>
+      <td>LightGBM</td>
+      <td>0.151017</td>
+      <td>0.998588</td>
+      <td>0.097513</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>gust_speed</td>
+      <td>RandomForest</td>
+      <td>1.876216</td>
+      <td>0.896121</td>
+      <td>1.456161</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>gust_speed</td>
+      <td>XGBoost</td>
+      <td>1.565881</td>
+      <td>0.927643</td>
+      <td>1.191783</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>gust_speed</td>
+      <td>LightGBM</td>
+      <td>1.662879</td>
+      <td>0.918401</td>
+      <td>1.266459</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>humidity</td>
+      <td>RandomForest</td>
+      <td>1.446457</td>
+      <td>0.989363</td>
+      <td>0.975927</td>
+      <td>1.397179e+00</td>
+    </tr>
+    <tr>
+      <td>humidity</td>
+      <td>XGBoost</td>
+      <td>0.473048</td>
+      <td>0.998862</td>
+      <td>0.310488</td>
+      <td>4.697864e-01</td>
+    </tr>
+    <tr>
+      <td>humidity</td>
+      <td>LightGBM</td>
+      <td>0.511759</td>
+      <td>0.998669</td>
+      <td>0.342579</td>
+      <td>5.110464e-01</td>
+    </tr>
+    <tr>
+      <td>precipitation</td>
+      <td>RandomForest</td>
+      <td>0.335588</td>
+      <td>0.861263</td>
+      <td>0.094955</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>precipitation</td>
+      <td>XGBoost</td>
+      <td>0.073785</td>
+      <td>0.993293</td>
+      <td>0.022949</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>precipitation</td>
+      <td>LightGBM</td>
+      <td>0.074901</td>
+      <td>0.993089</td>
+      <td>0.025581</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>pressure</td>
+      <td>RandomForest</td>
+      <td>0.331540</td>
+      <td>0.995388</td>
+      <td>0.247810</td>
+      <td>2.452998e-02</td>
+    </tr>
+    <tr>
+      <td>pressure</td>
+      <td>XGBoost</td>
+      <td>0.068413</td>
+      <td>0.999804</td>
+      <td>0.042846</td>
+      <td>4.240392e-03</td>
+    </tr>
+    <tr>
+      <td>pressure</td>
+      <td>LightGBM</td>
+      <td>0.124723</td>
+      <td>0.999347</td>
+      <td>0.082135</td>
+      <td>8.126634e-03</td>
+    </tr>
+    <tr>
+      <td>rain_probability</td>
+      <td>RandomForest</td>
+      <td>7.243018</td>
+      <td>0.974182</td>
+      <td>3.663213</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>rain_probability</td>
+      <td>XGBoost</td>
+      <td>0.396555</td>
+      <td>0.999923</td>
+      <td>0.157209</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>rain_probability</td>
+      <td>LightGBM</td>
+      <td>0.149862</td>
+      <td>0.999989</td>
+      <td>0.048557</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>snow_probability</td>
+      <td>RandomForest</td>
+      <td>0.000000</td>
+      <td>1.000000</td>
+      <td>0.000000</td>
+      <td>inf</td>
+    </tr>
+    <tr>
+      <td>snow_probability</td>
+      <td>XGBoost</td>
+      <td>0.000000</td>
+      <td>1.000000</td>
+      <td>0.000000</td>
+      <td>inf</td>
+    </tr>
+    <tr>
+      <td>snow_probability</td>
+      <td>LightGBM</td>
+      <td>0.000000</td>
+      <td>1.000000</td>
+      <td>0.000000</td>
+      <td>inf</td>
+    </tr>
+    <tr>
+      <td>temperature</td>
+      <td>RandomForest</td>
+      <td>0.349142</td>
+      <td>0.994006</td>
+      <td>0.236534</td>
+      <td>9.776058e-01</td>
+    </tr>
+    <tr>
+      <td>temperature</td>
+      <td>XGBoost</td>
+      <td>0.160836</td>
+      <td>0.998728</td>
+      <td>0.112454</td>
+      <td>4.802845e-01</td>
+    </tr>
+    <tr>
+      <td>temperature</td>
+      <td>LightGBM</td>
+      <td>0.189441</td>
+      <td>0.998235</td>
+      <td>0.132375</td>
+      <td>5.696408e-01</td>
+    </tr>
+    <tr>
+      <td>uv_index</td>
+      <td>RandomForest</td>
+      <td>0.175280</td>
+      <td>0.997070</td>
+      <td>0.087348</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>uv_index</td>
+      <td>XGBoost</td>
+      <td>0.030659</td>
+      <td>0.999910</td>
+      <td>0.011779</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>uv_index</td>
+      <td>LightGBM</td>
+      <td>0.031772</td>
+      <td>0.999904</td>
+      <td>0.009759</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>visibility</td>
+      <td>RandomForest</td>
+      <td>0.451276</td>
+      <td>0.954651</td>
+      <td>0.175363</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>visibility</td>
+      <td>XGBoost</td>
+      <td>0.040226</td>
+      <td>0.999640</td>
+      <td>0.014414</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>visibility</td>
+      <td>LightGBM</td>
+      <td>0.066825</td>
+      <td>0.999006</td>
+      <td>0.023671</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>wind_speed</td>
+      <td>RandomForest</td>
+      <td>1.026486</td>
+      <td>0.972799</td>
+      <td>0.696696</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>wind_speed</td>
+      <td>XGBoost</td>
+      <td>0.273612</td>
+      <td>0.998067</td>
+      <td>0.156982</td>
+      <td>1.797693e+308</td>
+    </tr>
+    <tr>
+      <td>wind_speed</td>
+      <td>LightGBM</td>
+      <td>0.174550</td>
+      <td>0.999213</td>
+      <td>0.111823</td>
+      <td>1.797693e+308</td>
+    </tr>
+  </tbody>
+</table>
+            </div>
+            
+            <footer class="text-center text-muted mt-5">
+                <p>&copy; 2025 Weather Alert System - Model Evaluation Report</p>
+            </footer>
+        </div>
+        
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
+    </body>
+    </html>
+    

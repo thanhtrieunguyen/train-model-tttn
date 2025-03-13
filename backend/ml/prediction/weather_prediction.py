@@ -5,6 +5,13 @@ import pandas as pd
 import numpy as np
 import joblib
 from datetime import datetime, timedelta
+import sys
+import math
+
+current_dir = os.path.dirname(__file__)
+project_root = os.path.abspath(os.path.join(current_dir, '../../..'))
+sys.path.append(project_root)
+
 
 from backend.ml.data.data_preprocessing import WeatherDataPreprocessor
 from utils.condition_code_mapper import ConditionCodeMapper
@@ -12,8 +19,8 @@ from backend.ml.config.feature_config import FeatureManager
 
 # Đường dẫn đến các file dữ liệu
 current_dir = os.path.dirname(os.path.abspath(__file__))
-conditions_path = os.path.join(current_dir, '..', 'data', 'weather_conditions.json')
-airports_path = os.path.join(current_dir, '..', 'data', 'airports.json')
+conditions_path = os.path.join(project_root, 'backend', 'ml', 'data', 'conditions.json')
+airports_path = os.path.join(project_root, 'backend', 'ml', 'data', 'airports.json')
 
 def get_current_weather(api_key, location):
     """Lấy thông tin thời tiết hiện tại từ API."""
@@ -106,19 +113,27 @@ class WeatherPredictionService:
             return False
 
     def load_models(self):
-        """Load toàn bộ models vào memory khi cần thiết"""
+        """Load models into memory when needed, with improved error handling and memory efficiency"""
         try:
-            data = joblib.load(self.path)
+            print(f"Loading models from {self.path}...")
+            # Use 'mmap_mode' to reduce memory usage by memory-mapping the file
+            data = joblib.load(self.path, mmap_mode='r')
+            
+            # Store only what's necessary
             self.models = data['models']
             self.scalers = data['scalers']
             self.feature_list_for_scale = data.get('feature_list_for_scale')
             self.best_model_info = data.get('best_model_info')
-            # Lấy loại mô hình
-            self.model_type = data.get('model_type', 'RandomForest')  # Default to RandomForest if not specified
+            self.model_type = data.get('model_type', 'RandomForest')
             
+            # Log success
+            print(f"Successfully loaded {self.model_type} models")
             return True
+        except (FileNotFoundError, KeyError) as e:
+            print(f"Error: Could not load model from {self.path}: {str(e)}")
+            return False
         except Exception as e:
-            print(f"Không thể load model từ {self.path}: {e}")
+            print(f"Unexpected error loading model from {self.path}: {str(e)}")
             return False
 
     def get_historical_weather(self, api_key, location, hours=12):
@@ -133,11 +148,14 @@ class WeatherPredictionService:
             now = datetime.now()
             historical_data = [current_weather]  # Bắt đầu với thời tiết hiện tại
             
-            # Lặp qua các giờ trước đó
-            for i in range(1, hours):
+            # Đảm bảo lấy ít nhất 12 giờ để tính toán đầy đủ các đặc trưng lag và rolling
+            required_hours = max(hours, 12)
+            print(f"Fetching {required_hours} hours of historical data for feature calculation...")
+            
+            for i in range(1, required_hours):
                 past_time = now - timedelta(hours=i)
                 
-                # Chuyển đổi múi giờ nếu cần
+                # Chuyển đổi định dạng ngày
                 date_str = past_time.strftime("%Y-%m-%d")
                 
                 # Sử dụng API history
@@ -172,11 +190,18 @@ class WeatherPredictionService:
                         
                         historical_data.append(historical_point)
                 except Exception as e:
-                    print(f"Error fetching historical data for {date_str}: {e}")
+                    print(f"Error fetching historical data for {date_str}, hour {past_time.hour}: {e}")
                     continue
             
             # Sắp xếp dữ liệu theo thời gian
             historical_data.sort(key=lambda x: x['timestamp'])
+            
+            # Verify we have enough data
+            if len(historical_data) < 12:
+                print(f"Warning: Only obtained {len(historical_data)} historical data points. " +
+                      f"This may impact lag and rolling feature calculations.")
+            else:
+                print(f"Successfully collected {len(historical_data)} historical data points.")
             
             return historical_data
         except Exception as e:
@@ -213,6 +238,14 @@ class WeatherPredictionService:
         last_row = df.iloc[-1:].copy()
         
         # Cập nhật timestamp thành thời gian tương lai cần dự báo
+        # Đảm bảo future_time là đối tượng datetime
+        if isinstance(future_time, (int, float, str)):
+            try:
+                future_time = pd.to_datetime(future_time)
+            except:
+                # Nếu không thể convert, sử dụng datetime hiện tại
+                future_time = datetime.now()
+        
         last_row['timestamp'] = future_time
         
         # Cập nhật các đặc trưng thời gian
@@ -231,42 +264,49 @@ class WeatherPredictionService:
         index = round(degree / 22.5)
         return directions[index % 16]
 
-    def get_condition_info(self, code, is_day):
-        """Lấy thông tin điều kiện thời tiết từ mã code."""
-        try:
-            with open(conditions_path, 'r', encoding='utf-8') as file:
-                conditions = json.load(file)
-        except Exception as e:
-            print(f"Lỗi khi đọc file conditions.json: {e}")
-            return {
-                "condition_code": code,
-                "condition_text": "Unknown",
-                "icon": "//cdn.weatherapi.com/weather/64x64/day/116.png"
-            }
+    def convert_wind_components_to_direction(self, wind_sin, wind_cos):
+        # Chuyển đổi từ các giá trị sin, cos sang hướng gió (độ)
+        angle = math.degrees(math.atan2(wind_sin, wind_cos))
+        return angle % 360
 
-        # Tìm code chính xác
-        for condition in conditions:
-            if (condition["code"] == code):
-                text = condition["day"] if is_day else condition["night"]
-                icon = condition["icon"].replace("day", "day" if is_day else "night")
-                closest_code = condition["code"]
-                return {
-                    "condition_code": closest_code,
-                    "condition_text": text, 
-                    "icon": icon
-                }
-
-        # Nếu không tìm thấy, tìm code gần nhất
-        closest_condition = min(conditions, key=lambda x: abs(x["code"] - code))
-        text = closest_condition["day"] if is_day else closest_condition["night"]
-        icon = closest_condition["icon"].replace("day", "day" if is_day else "night")
-        closest_code = closest_condition["code"]
-
+    def get_condition_info(self, condition_code, is_day=1):
+        """
+        Get condition information (text description and icon) based on condition code
+        
+        Args:
+            condition_code (int): Weather condition code
+            is_day (int): Whether it's daytime (1) or nighttime (0)
+            
+        Returns:
+            dict: Condition information including text description and icon
+        """
+        # Get the condition text from the mapper
+        condition_text = ConditionCodeMapper.get_condition_text(condition_code)
+        
+        # Map condition code to appropriate icon
+        # Default icon naming pattern (most weather services use this pattern)
+        base_icon_name = f"{condition_code:03d}"
+        icon_time = "day" if is_day else "night"
+        icon = f"{base_icon_name}_{icon_time}"
+        
         return {
-            "condition_code": closest_code,
-            "condition_text": text,
-            "icon": icon
+            "condition_text": condition_text,
+            "icon": icon,
+            "condition_code": condition_code
         }
+        
+    def fix_timestamp_handling(self, historical_data):
+        """Standardize timestamp format in historical data to avoid parsing errors"""
+        for item in historical_data:
+            if isinstance(item['timestamp'], str):
+                try:
+                    dt = pd.to_datetime(item['timestamp'])
+                    item['timestamp'] = dt.isoformat()
+                except Exception as e:
+                    print(f"Error standardizing timestamp '{item['timestamp']}': {e}")
+                    # Nếu không chuyển đổi được, sử dụng thời gian hiện tại
+                    item['timestamp'] = datetime.now().isoformat()
+        return historical_data
 
     def predict(self, api_key, location, prediction_hours=24):
         """Dự báo thời tiết cho n giờ tiếp theo."""
@@ -281,6 +321,8 @@ class WeatherPredictionService:
         historical_data = self.get_historical_weather(api_key, location, hours=12)
         if not historical_data:
             return {"error": "Không lấy được dữ liệu lịch sử"}
+        
+        historical_data = self.fix_timestamp_handling(historical_data)
         
         # Updated location_data using precise input coordinates instead of possibly rounded values from API
         location_info = historical_data[0]
@@ -323,6 +365,8 @@ class WeatherPredictionService:
         for future_time in future_times:
             # Chuẩn bị dữ liệu đầu vào (dựa trên historical_data hiện tại)
             input_data = self.prepare_input(historical_data, future_time)
+            # Convert column names to strings to avoid .replace error
+            input_data.columns = input_data.columns.astype(str)
 
             # Dự báo cho từng mục tiêu (temperature, humidity, ...) ngoại trừ condition_code
             prediction = {}
@@ -344,6 +388,11 @@ class WeatherPredictionService:
                 # Nếu dự đoán là wind_direction, chuyển sang ký tự
                 if target == 'wind_direction':
                     prediction['wind_direction_symbol'] = self.convert_wind_direction_to_symbol(prediction[target])
+
+            if 'wind_direction_sin' in prediction and 'wind_direction_cos' in prediction:
+                wind_dir = self.convert_wind_components_to_direction(prediction['wind_direction_sin'], prediction['wind_direction_cos'])
+                prediction['wind_direction'] = round(wind_dir, 0)
+                prediction['wind_direction_symbol'] = self.convert_wind_direction_to_symbol(prediction['wind_direction'])
 
             # Đảm bảo giá trị không âm
             for key in ['temperature', 'humidity', 'wind_speed', 'pressure', 'visibility', 'uv_index']:
@@ -390,7 +439,7 @@ class WeatherPredictionService:
                 
             # Lưu kết quả dự báo vào historical_data
             historical_data.append({
-                'timestamp': future_time.isoformat(),
+                'timestamp': future_time.isoformat(),  # Lưu dưới dạng chuỗi ISO format
                 'airport_code': location,
                 **prediction,  # Thêm các giá trị dự báo vào historical_data
                 'wind_direction_symbol': prediction.get('wind_direction_symbol'),
@@ -398,6 +447,8 @@ class WeatherPredictionService:
 
             # Cập nhật lại các đặc trưng lag và rolling
             df_historical = pd.DataFrame(historical_data)
+            # Explicitly specify ISO8601 format for timestamp parsing
+            df_historical['timestamp'] = pd.to_datetime(df_historical['timestamp']) 
             df_historical = self.preprocessor.extract_time_features(df_historical)
             columns = ['temperature', 'humidity', 'wind_speed', 'pressure', 
                     'precipitation', 'cloud', 'uv_index', 'visibility', 
@@ -438,10 +489,10 @@ class WeatherPredictionService:
 
 # Example usage
 if __name__ == "__main__":
-    model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'models', 'weather_models.joblib'))
-    prediction_service = WeatherPredictionService(model_path)
-    api_key = 'a5b32b6e884e4b5aa5b95910241712'
-    location = '12.668299675,108.120002747'
-    output = prediction_service.predict(api_key, location, prediction_hours=24)
-    print(json.dumps(output, indent=4, ensure_ascii=False))
-    # pass
+    # model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'models', 'weather_models.joblib'))
+    # prediction_service = WeatherPredictionService(model_path)
+    # api_key = 'a5b32b6e884e4b5aa5b95910241712'
+    # location = '12.668299675,108.120002747'
+    # output = prediction_service.predict(api_key, location, prediction_hours=24)
+    # print(json.dumps(output, indent=4, ensure_ascii=False))
+    pass

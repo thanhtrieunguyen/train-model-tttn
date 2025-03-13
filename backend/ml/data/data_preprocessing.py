@@ -11,7 +11,15 @@ class WeatherDataPreprocessor:
     
     def extract_time_features(self, df):
         """Extract time-based features from timestamp."""
-        df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+        # Kiểm tra và chuyển đổi timestamp nếu cần
+        if 'timestamp' in df.columns:
+            if df['timestamp'].dtype == 'int64' or df['timestamp'].dtype == 'float64':
+                # Nếu timestamp là số, giả định đó là Unix timestamp (giây)
+                df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
+            else:
+                # Chuyển đổi bình thường
+                df['timestamp'] = pd.to_datetime(df['timestamp'], errors='coerce')
+                
         df = df.dropna(subset=['timestamp']).copy()
         df.loc[:, 'hour'] = df['timestamp'].dt.hour
         df.loc[:, 'day'] = df['timestamp'].dt.day

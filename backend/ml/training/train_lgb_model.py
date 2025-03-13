@@ -22,18 +22,20 @@ class LightGBMTrainer:
     def __init__(self):
         self.model = lgb.LGBMRegressor(
             n_estimators=300,         
-            learning_rate=0.05,       
-            max_depth=12,             
-            num_leaves=63,            
-            min_child_samples=50,    # giảm từ 100 để tăng khả năng thực hiện split
-            min_split_gain=0.0,      # cho phép chấp nhận các split nhỏ
-            colsample_bytree=0.8,      
-            subsample=0.8,             
-            subsample_freq=5,          
-            reg_alpha=0.3,           # giảm regularization để không ngăn cản các split nhỏ
-            reg_lambda=0.3,          # giảm regularization
+            learning_rate=0.1,        # Tăng learning rate
+            max_depth=8,             # Giảm max_depth
+            num_leaves=31,           # Giảm num_leaves
+            min_child_samples=20,    # Giảm min_child_samples
+            min_child_weight=1e-3,   # Thêm min_child_weight để kiểm soát split
+            min_split_gain=1e-3,     # Giảm min_split_gain
+            colsample_bytree=0.9,    # Tăng colsample_bytree  
+            subsample=0.9,           # Tăng subsample
+            subsample_freq=1,        # Giảm subsample_freq
+            reg_alpha=0.1,           # Giảm regularization
+            reg_lambda=0.1,          # Giảm regularization
             random_state=42,
-            n_jobs=-1
+            n_jobs=-1,
+            verbosity=-1            # Giảm thông báo warning
         )
         
         self.preprocessor = WeatherDataPreprocessor()
@@ -43,7 +45,7 @@ class LightGBMTrainer:
         self.metrics = {}
 
     def prepare_data(self, data_path):
-        """Chuẩn bị dữ liệu cho huấn luyện."""
+        """huẩn bị dữ liệu cho huấn luyện."""
         print("Đang tiền xử lý dữ liệu...")
         df = self.preprocessor.preprocess(data_path)
         
@@ -144,33 +146,49 @@ class LightGBMTrainer:
             print(f"\nĐang huấn luyện mô hình cho {target_name}...")
             
             X_train, X_test, y_train, y_test = train_test_split(
-                X, y, test_size=0.2, random_state=42
+                X, y, test_size=0.3, random_state=42
             )
 
             # Chuẩn hóa dữ liệu
-            scaler = StandardScaler()
-            X_train_scaled = X_train.copy()
-            X_test_scaled = X_test.copy()
+            # scaler = StandardScaler()
+            # X_train_scaled = X_train.copy()
+            # X_test_scaled = X_test.copy()
             
-            X_train_scaled[feature_list_for_scale] = scaler.fit_transform(X_train[feature_list_for_scale])
-            X_test_scaled[feature_list_for_scale] = scaler.transform(X_test[feature_list_for_scale])
+            # X_train_scaled[feature_list_for_scale] = scaler.fit_transform(X_train[feature_list_for_scale])
+            # X_test_scaled[feature_list_for_scale] = scaler.transform(X_test[feature_list_for_scale])
+
+            scaler = StandardScaler()
+            # Thay vì trả về mảng numpy, bọc kết quả trong DataFrame để giữ tên đặc trưng
+            X_train_scaled = pd.DataFrame(
+                scaler.fit_transform(X_train[feature_list_for_scale]),
+                columns=feature_list_for_scale,
+                index=X_train.index
+            )
+            X_test_scaled = pd.DataFrame(
+                scaler.transform(X_test[feature_list_for_scale]),
+                columns=feature_list_for_scale, 
+                index=X_test.index
+            )
             
             self.scalers[target_name] = scaler
 
-            # Huấn luyện mô hình
+            # Huấn luyện mô hình với các tham số giống __init__
             model = lgb.LGBMRegressor(
-                n_estimators=300,         
-                learning_rate=0.05,       
-                max_depth=12,             
-                num_leaves=63,            
-                min_child_samples=100,     
-                colsample_bytree=0.8,      
-                subsample=0.8,             
-                subsample_freq=5,          
-                reg_alpha=0.5,             
-                reg_lambda=0.5,            
+                n_estimators=300,
+                learning_rate=0.1,
+                max_depth=8,
+                num_leaves=31,
+                min_child_samples=20,
+                min_child_weight=1e-3,
+                min_split_gain=1e-3,
+                colsample_bytree=0.9,
+                subsample=0.9,
+                subsample_freq=1,
+                reg_alpha=0.1,
+                reg_lambda=0.1,
                 random_state=42,
-                n_jobs=-1
+                n_jobs=-1,
+                verbosity=-1
             )
             
             model.fit(X_train_scaled, y_train)

@@ -76,7 +76,7 @@ class HistoricalWeatherCollector:
             airport = self.airports_data[i]
             print(f"Collecting data for {airport['name']} ({airport['iata']})")
             current_date = start_date
-            airport_data = []  # Tạo danh sách lưu dữ liệu cho mỗi sân bay
+            airport_data = []  # Dữ liệu cho mỗi sân bay
 
             while current_date <= end_date:
                 weather = self.get_historical_weather(
@@ -88,17 +88,17 @@ class HistoricalWeatherCollector:
                 if weather and 'forecast' in weather:
                     for hour in weather['forecast']['forecastday'][0]['hour']:
                         data_point = {
-                            'timestamp': hour['time'], # Thời gian dự báo
-                            'airport_code': airport['iata'], # Mã sân bay
-                            'airport_name': airport['name'], # Tên sân bay
-                            'latitude': airport['latitude'], # Vĩ độ
-                            'longitude': airport['longitude'], # Kinh độ
-                            'temperature': hour['temp_c'], # Nhiệt độ (độ C)
-                            'feels_like': hour['feelslike_c'], # Nhiệt độ cảm nhận (độ C)
-                            'humidity': hour['humidity'], # Độ ẩm (%)
-                            'wind_speed': hour['wind_mph'], # Tốc độ gió (mph)
-                            'wind_speed': hour['wind_kph'], # Tốc độ gió (km/h)
-                            'wind_direction': hour['wind_degree'], # Hướng gió (độ)
+                            'timestamp': hour['time'],           # Thời gian dự báo
+                            'airport_code': airport['iata'],      # Mã sân bay
+                            'airport_name': airport['name'],        # Tên sân bay
+                            'latitude': airport['latitude'],       # Vĩ độ
+                            'longitude': airport['longitude'],      # Kinh độ
+                            'temperature': hour['temp_c'],         # Nhiệt độ (độ C)
+                            'feels_like': hour['feelslike_c'],       # Nhiệt độ cảm nhận (độ C)
+                            'humidity': hour['humidity'],          # Độ ẩm (%)
+                            'wind_speed_mph': hour['wind_mph'],      # Tốc độ gió (mph)
+                            'wind_speed_kph': hour['wind_kph'],      # Tốc độ gió (km/h)
+                            'wind_direction': hour['wind_degree'],   # Hướng gió (độ)
                             'wind_direction_symbol': hour['wind_dir'], # Ký hiệu hướng gió
                             'gust_speed': hour['gust_mph'], # Tốc độ gió giật (mph)
                             'pressure': hour['pressure_mb'], # Áp suất (mb)

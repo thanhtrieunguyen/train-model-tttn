@@ -1,13 +1,26 @@
 .env
 thuctapenv/
+titienv/
+.vscode
 backend/ml/models/weather_models.joblib
 backend/ml/data/__pycache__/
 backend/ml/data/__pycache__/*
-backend/ml/evaluation/__pycache__
 backend/ml/models/modelfin/weather_models.joblib
+backend/ml/evaluation/__pycache__
+backend/ml/.ipynb_checkpoints
+backend/ml/config/__pycache__
+backend/ml/data/__pycache__
+backend/ml/evaluation/__pycache__
+backend/ml/prediction/__pycache__
+utils/__pycache__
 backend/ml/models/modelfin
 backend/ml/models/rating_chart_xgb
 backend/ml/models/xgb
+backend/ml/models/aggregated_features.pkl
+backend/ml/models/best_weather_models.joblib
+backend/ml/models/lgb_weather_models.joblib
+backend/ml/models/rf_weather_models.joblib
+backend/ml/models/xgb_weather_models.joblib
 backend/ml/training/.ipynb_checkpoints
 backend/ml/data/weather_dataset.csv
 weather_dataset1 (5).csv

@@ -85,21 +85,54 @@ def prepare_models():
     return available_models
 
 def benchmark_models(models, api_key, location, hours, iterations):
-    """Benchmark các mô hình dự báo thời tiết"""
+    """Benchmark weather prediction models with improved configuration and error handling"""
     results = {}
     
+    # Validate inputs
+    if not models:
+        print("Error: No models to benchmark")
+        return {}
+    
+    if not api_key:
+        print("Error: Missing API key")
+        return {}
+    
+    # Try to validate location format
+    try:
+        lat, lon = map(float, location.split(','))
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            print(f"Warning: Location coordinates may be invalid: {location}")
+    except:
+        print(f"Warning: Location format may be invalid: {location}")
+    
+    # Pre-warm API connection to avoid measuring connection setup time
+    try:
+        # Make a test request to ensure API is responsive
+        test_url = f"http://api.weatherapi.com/v1/current.json?key={api_key}&q={location}&aqi=no"
+        response = requests.get(test_url, timeout=5)
+        response.raise_for_status()
+        print(f"API connection verified: {response.status_code}")
+    except Exception as e:
+        print(f"Warning: API connection test failed: {e}")
+        print("Continuing with benchmarks anyway...")
+    
     for name, model_path in models.items():
-        print(f"Đang benchmark mô hình {name}...")
+        print(f"\nBenchmarking model {name}...")
         service = WeatherPredictionService(model_path)
         
-        # Đo thời gian load model
+        # Measure model load time
         start_time = time.time()
-        service.load_models()  # Load model trước khi dự báo
+        load_success = service.load_models()
         load_time = time.time() - start_time
         
-        # Đo thời gian dự báo
+        if not load_success:
+            print(f"Failed to load model {name}, skipping")
+            continue
+        
+        # Measure prediction times
         prediction_times = []
         memory_usage = []
+        prediction_success = []
         
         for i in range(iterations):
             # Clear any previous predictions
@@ -110,24 +143,46 @@ def benchmark_models(models, api_key, location, hours, iterations):
             process = psutil.Process(os.getpid())
             mem_before = process.memory_info().rss / 1024 / 1024  # MB
             
-            # Thực hiện dự báo và đo thời gian
+            # Perform prediction and measure time
             start_time = time.time()
-            _ = service.predict(api_key, location, prediction_hours=hours)
+            try:
+                prediction_result = service.predict(api_key, location, prediction_hours=hours)
+                success = prediction_result is not None and "error" not in prediction_result
+                prediction_success.append(success)
+            except Exception as e:
+                print(f"  Error in iteration {i+1}: {e}")
+                prediction_success.append(False)
+            
             pred_time = time.time() - start_time
             
             # Measure memory after prediction
             mem_after = process.memory_info().rss / 1024 / 1024  # MB
-            memory_usage.append(mem_after - mem_before)
+            memory_increase = mem_after - mem_before
+            
+            # Sometimes memory can decrease due to garbage collection
+            if memory_increase > 0:
+                memory_usage.append(memory_increase)
             
             prediction_times.append(pred_time)
             
-            print(f"  Lần {i+1}: {pred_time:.4f}s, Sử dụng {memory_usage[-1]:.2f}MB")
+            # Force garbage collection between iterations
+            import gc
+            gc.collect()
+            
+            success_status = "✓" if prediction_success[-1] else "✗"
+            print(f"  Run {i+1}: {pred_time:.4f}s, Memory: {memory_increase:.2f}MB {success_status}")
         
-        # Tính toán thống kê
-        avg_prediction_time = sum(prediction_times) / len(prediction_times)
-        min_prediction_time = min(prediction_times)
-        max_prediction_time = max(prediction_times)
-        avg_memory = sum(memory_usage) / len(memory_usage)
+        # Calculate statistics
+        success_rate = sum(prediction_success) / len(prediction_success) * 100 if prediction_success else 0
+        
+        if prediction_times:
+            avg_prediction_time = sum(prediction_times) / len(prediction_times)
+            min_prediction_time = min(prediction_times)
+            max_prediction_time = max(prediction_times)
+        else:
+            avg_prediction_time = min_prediction_time = max_prediction_time = 0
+        
+        avg_memory = sum(memory_usage) / len(memory_usage) if memory_usage else 0
         
         results[name] = {
             'load_time': load_time,
@@ -136,10 +191,15 @@ def benchmark_models(models, api_key, location, hours, iterations):
             'max_prediction_time': max_prediction_time,
             'prediction_times': prediction_times,
             'avg_memory_usage': avg_memory,
-            'memory_usage': memory_usage
+            'memory_usage': memory_usage,
+            'success_rate': success_rate
         }
         
-        print(f"  Kết quả: Load model: {load_time:.4f}s, Dự báo trung bình: {avg_prediction_time:.4f}s, Bộ nhớ: {avg_memory:.2f}MB")
+        print(f"  Results for {name}:")
+        print(f"    Load time: {load_time:.4f}s")
+        print(f"    Prediction time (avg): {avg_prediction_time:.4f}s")
+        print(f"    Memory usage (avg): {avg_memory:.2f}MB")
+        print(f"    Success rate: {success_rate:.1f}%")
     
     return results
 
