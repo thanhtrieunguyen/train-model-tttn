@@ -3,7 +3,7 @@ thuctapenv/
 backend/ml/models/weather_models.joblib
 backend/ml/data/__pycache__/
 backend/ml/data/__pycache__/*
-backend\ml\evaluation\__pycache__
+backend/ml/evaluation/__pycache__
 backend/ml/models/modelfin/weather_models.joblib
 backend/ml/models/modelfin
 backend/ml/models/rating_chart_xgb

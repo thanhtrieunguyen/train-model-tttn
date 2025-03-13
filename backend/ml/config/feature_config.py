@@ -1,38 +1,43 @@
 import os
-import pickle
+import joblib
 import pandas as pd
 
 class FeatureManager:
+    AGGREGATED_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../models', 'aggregated_features.pkl'))
+    
     @staticmethod
     def save_feature_names(feature_names, target, model_type):
-        """Lưu tên các tính năng cho mô hình"""
-        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../models'))
-        output_path = os.path.join(base_dir, f'{target}_{model_type}_features.pkl')
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
-        with open(output_path, 'wb') as f:
-            pickle.dump(feature_names, f)
-    
+        """Lưu tên các tính năng của mô hình vào file aggregated_features.pkl"""
+        # Đọc file đã tồn tại hay tạo dict mới
+        if os.path.exists(FeatureManager.AGGREGATED_PATH):
+            aggregated = joblib.load(FeatureManager.AGGREGATED_PATH)
+        else:
+            aggregated = {}
+        key = f"{target}_{model_type}"
+        aggregated[key] = feature_names
+        
+        # Tạo thư mục nếu chưa tồn tại
+        os.makedirs(os.path.dirname(FeatureManager.AGGREGATED_PATH), exist_ok=True)
+        joblib.dump(aggregated, FeatureManager.AGGREGATED_PATH)
+        print(f"Lưu feature cho {key} thành công vào {FeatureManager.AGGREGATED_PATH}")
+
     @staticmethod
     def load_feature_names(target, model_type):
-        """Tải tên các tính năng của mô hình"""
-        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../models'))
-        path = os.path.join(base_dir, f'{target}_{model_type}_features.pkl')
-        if os.path.exists(path):
-            with open(path, 'rb') as f:
-                return pickle.load(f)
+        """Tải tên các tính năng của mô hình từ file aggregated_features.pkl"""
+        key = f"{target}_{model_type}"
+        if os.path.exists(FeatureManager.AGGREGATED_PATH):
+            aggregated = joblib.load(FeatureManager.AGGREGATED_PATH)
+            return aggregated.get(key, None)
         return None
-    
+
     @staticmethod
     def ensure_feature_order(df, target, model_type):
-        """Đảm bảo thứ tự và tên tính năng đúng như lúc huấn luyện"""
+        """Đảm bảo thứ tự và tên tính năng đúng như lúc huấn luyện.
+           Đây chỉ là ví dụ, phần logic xử lý có thể tuỳ chỉnh lại.
+        """
         feature_names = FeatureManager.load_feature_names(target, model_type)
         if feature_names is None:
-            raise ValueError(f"Không tìm thấy thông tin tính năng cho {target}_{model_type}")
-        
-        # Kiểm tra xem tất cả các tính năng cần thiết có tồn tại không
-        missing_features = set(feature_names) - set(df.columns)
-        if missing_features:
-            raise ValueError(f"Thiếu các tính năng: {missing_features}")
-        
-        # Trả về dữ liệu với cùng thứ tự tính năng như khi huấn luyện
-        return df[feature_names]
+            return df
+        # Giả sử ta sắp xếp lại các cột theo danh sách feature_names
+        cols = [col for col in feature_names if col in df.columns]
+        return df[cols]

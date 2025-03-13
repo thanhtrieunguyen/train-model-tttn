@@ -155,6 +155,8 @@ def compare_with_real_data(forecasts, api_key, location):
             
             results.append(comparison)
     
+    # Sắp xếp kết quả theo timestamp để tránh đường nối đứt đoạn khi vẽ biểu đồ
+    results = sorted(results, key=lambda x: datetime.fromisoformat(x['timestamp'].replace('Z', '+00:00')))
     return results
 
 def calculate_accuracy(comparisons):
