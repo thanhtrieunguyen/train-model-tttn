@@ -44,11 +44,12 @@ class ModelEvaluator:
         """Chuẩn bị dữ liệu để huấn luyện và đánh giá mô hình"""
         df = self.preprocessor.preprocess(data_path)
         
+        # Update target list: bỏ 'condition_code', đổi 'cloud' thành 'cloud_cover' và thay 'wind_direction'
         targets = ['temperature', 'humidity', 'wind_speed', 'pressure', 
-                  'precipitation', 'cloud', 'uv_index', 'visibility', 
-                  'rain_probability', 'dewpoint', 'gust_speed', 'snow_probability',
-                  'condition_code', 'wind_direction']
-
+                   'precipitation', 'cloud_cover', 'uv_index', 'visibility', 
+                   'rain_probability', 'dewpoint', 'gust_speed', 'snow_probability',
+                   'wind_direction_sin', 'wind_direction_cos']
+        
         X = df.drop(targets, axis=1)
         y_dict = {target: df[target] for target in targets}
         
@@ -313,10 +314,11 @@ class ModelEvaluator:
         
         # Thực hiện dự báo với mỗi mô hình
         predictions = {}
+        # Update danh sách target cho đồng bộ
         targets = ['temperature', 'humidity', 'wind_speed', 'pressure', 
-                  'precipitation', 'cloud', 'uv_index', 'visibility', 
-                  'rain_probability', 'dewpoint', 'gust_speed', 'snow_probability',
-                  'condition_code', 'wind_direction']
+                   'precipitation', 'cloud_cover', 'uv_index', 'visibility', 
+                   'rain_probability', 'dewpoint', 'gust_speed', 'snow_probability',
+                   'wind_direction_sin', 'wind_direction_cos']
         
         for model_name in self.models:
             predictions[model_name] = {}
